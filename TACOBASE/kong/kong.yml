@@ -1,0 +1,19 @@
+services:
+  - name: auth
+    url: http://taco_auth:9999
+    routes:
+      - name: auth_route
+        paths:
+          - /auth/
+  - name: rest
+    url: http://taco_api:8000
+    routes:
+      - name: rest_route
+        paths:
+          - /rest/
+  - name: realtime
+    url: http://taco_api:4000
+    routes:
+      - name: realtime_route
+        paths:
+          - /realtime/

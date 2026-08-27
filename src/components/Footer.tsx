@@ -1,0 +1,79 @@
+'use client';
+
+/**
+ * @file Footer.tsx
+ * @description Componente del pie de página con información de contacto y emergencias.
+ * @module components
+ */
+
+import React from 'react';
+
+/**
+ * Pie de página institucional de la ADESCO.
+ * 
+ * @returns {React.ReactElement} El pie de página renderizado.
+ */
+export default function Footer(): React.ReactElement {
+  return (
+    <footer id="noticias" className="footer">
+      <div className="footerContainer">
+        <div className="footerGrid">
+          <div>
+            <a href="#" className="logo" style={{ marginBottom: '1rem' }}>
+              <div className="logoIcon">RM</div>
+              <span>Residencial México</span>
+            </a>
+            <p className="footerBrandDesc">
+              Asociación de Desarrollo Comunal (ADESCO) Residencial México. Trabajando juntos por la seguridad, el orden y el bienestar de todas nuestras familias.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="footerColTitle">Enlaces Rápidos</h4>
+            <ul className="footerLinks">
+              <li><a href="#inicio" className="footerLink">Inicio</a></li>
+              <li><a href="#servicios" className="footerLink">Servicios</a></li>
+              <li><a href="#estadisticas" className="footerLink">Indicadores</a></li>
+              <li><a href="#" className="footerLink">Reglamento Interno</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footerColTitle">Contacto Directo</h4>
+            <ul className="footerLinks">
+              <li className="footerLink">📍 Av. Principal #1, Residencial México</li>
+              <li className="footerLink">✉️ junta.directiva@resmexico.org</li>
+              <li className="footerLink">📞 +503 2200-0000 (Administración)</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footerColTitle">Emergencias</h4>
+            <ul className="footerLinks">
+              <li>
+                <a href="tel:+50322000001" className="footerLink footerEmergency">
+                  🚨 +503 2200-0001 (Seguridad Caseta)
+                </a>
+              </li>
+              <li>
+                <a href="tel:911" className="footerLink">
+                  📞 911 (Policía Nacional Civil)
+                </a>
+              </li>
+              <li>
+                <a href="tel:913" className="footerLink">
+                  🚒 913 (Cuerpo de Bomberos)
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="footerBottom">
+          <p>© 2026 ADESCO Residencial México. Todos los derechos reservados.</p>
+          <p>Desarrollado con compromiso Pro-Bono para el bienestar de la comunidad.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}

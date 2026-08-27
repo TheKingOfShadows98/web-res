@@ -1,0 +1,69 @@
+services:
+  db:
+    image: supabase/postgres:15.3.0
+    container_name: taco_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  auth:
+    image: supabase/gotrue:2.150.0
+    container_name: taco_auth
+    depends_on:
+      - db
+    ports:
+      - "9999:9999"
+    environment:
+      API_EXTERNAL_URL: "http://localhost:8000"
+      GOTRUE_DB_DRIVER: "postgres"
+      GOTRUE_DB_DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres"
+      GOTRUE_JWT_SECRET: "${JWT_SECRET}"
+      GOTRUE_SITE_URL: "http://localhost:8000"
+      SMTP_HOST: "smtp.example.com"
+      SMTP_PORT: "587"
+      SMTP_USER: "user@example.com"
+      SMTP_PASS: "${SMTP_PASS}"
+      SMTP_ADMIN_EMAIL: "admin@example.com"
+    restart: unless-stopped
+
+  api:
+    image: kong:2.8.1
+    container_name: taco_api
+    depends_on:
+      - db
+      - auth
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/etc/kong/kong.yml"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+    command: "kong start"
+    volumes:
+      - ./kong/kong.yml:/etc/kong/kong.yml:ro
+    restart: unless-stopped
+
+  studio:
+    image: supabase/studio:0.45.0
+    container_name: taco_studio
+    depends_on:
+      - api
+    ports:
+      - "8001:3000"
+    environment:
+      SUPABASE_URL: "http://localhost:8000"
+      SUPABASE_ANON_KEY: "${ANON_KEY}"
+    restart: unless-stopped
+
+volumes:
+  db_data:
+    driver: local
