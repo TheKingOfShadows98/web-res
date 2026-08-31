@@ -2,55 +2,85 @@
 
 /**
  * @file page.tsx
- * @description Página de administración de finanzas para el registro de ingresos y egresos.
+ * @description Página de administración de finanzas para el registro de ingresos y egresos con autenticación y cumplimiento de RLS.
  * @module app/admin/finanzas/recivos
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { IIngreso, IEgreso } from '@/app/entities/Recivos';
 
+const getInitialDateTime = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function RecivosPage(): React.ReactElement {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  // Estados de autenticación
+  const [user, setUser] = useState<User | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+  const [authForm, setAuthForm] = useState({
+    email: '',
+    password: '',
+    nombre: '',
+    telefono: '',
+  });
+
+  // Estados del formulario financiero
   const [activeTab, setActiveTab] = useState<'ingreso' | 'egreso'>('ingreso');
-
-  // Estado del formulario de Ingresos
-  const [ingresoForm, setIngresoForm] = useState<Omit<IIngreso, 'id'>>({
+  const [ingresoForm, setIngresoForm] = useState<Omit<IIngreso, 'id'>>(() => ({
     concepto: '',
     cantidad: 0,
     comprobante: '',
-    fecha: '',
-  });
-
-  // Estado del formulario de Egresos
-  const [egresoForm, setEgresoForm] = useState<Omit<IEgreso, 'id'>>({
+    fecha: getInitialDateTime(),
+  }));
+  const [egresoForm, setEgresoForm] = useState<Omit<IEgreso, 'id'>>(() => ({
     concepto: '',
     cantidad: 0,
     comprobante: '',
-    fecha: '',
-  });
+    fecha: getInitialDateTime(),
+  }));
 
   // Estados comunes de UI
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Establecer fecha por defecto al cargar el componente
+  // 1. Monitorear estado de autenticación de Supabase
   useEffect(() => {
-    const now = new Date();
-    // Formato YYYY-MM-DDThh:mm para input datetime-local
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (err) {
+        console.error('Error al verificar sesión:', err);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    checkUser();
 
-    setIngresoForm((prev) => ({ ...prev, fecha: formattedDateTime }));
-    setEgresoForm((prev) => ({ ...prev, fecha: formattedDateTime }));
-  }, [activeTab]);
+    // Suscribirse a cambios en el estado de autenticación (login, logout, token refresh, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
 
-  // Manejar el cambio en los inputs del formulario
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Manejar cambios en formularios
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     formType: 'ingreso' | 'egreso'
@@ -65,11 +95,78 @@ export default function RecivosPage(): React.ReactElement {
     }
   };
 
-  // Enviar formulario a Supabase
+  const handleAuthInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAuthForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Autenticación: Registrar o Iniciar Sesión
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setMessage(null);
+
+    try {
+      if (authMode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authForm.email,
+          password: authForm.password,
+        });
+        if (error) throw error;
+        setMessage({ type: 'success', text: '¡Sesión iniciada con éxito!' });
+      } else {
+        // Registro de usuario en Supabase Auth con metadatos de perfil
+        const { error } = await supabase.auth.signUp({
+          email: authForm.email,
+          password: authForm.password,
+          options: {
+            data: {
+              nombre: authForm.nombre,
+              telefono: authForm.telefono,
+            },
+          },
+        });
+        if (error) throw error;
+        setMessage({
+          type: 'success',
+          text: '¡Usuario registrado! Revisa tu correo de confirmación si está activado.',
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      const errorMsg = err instanceof Error ? err.message : 'Error en autenticación';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Cerrar sesión
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setMessage({ type: 'success', text: 'Sesión cerrada.' });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Error al cerrar sesión.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enviar formulario financiero a Supabase (requiere estar autenticado por RLS)
   const handleSubmit = async (e: React.FormEvent, formType: 'ingreso' | 'egreso') => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
+
+    if (!user) {
+      setMessage({ type: 'error', text: 'Debes estar autenticado para realizar esta acción.' });
+      setLoading(false);
+      return;
+    }
 
     const data = formType === 'ingreso' ? ingresoForm : egresoForm;
 
@@ -88,7 +185,6 @@ export default function RecivosPage(): React.ReactElement {
     try {
       const dbTable = formType === 'ingreso' ? 'ingreso' : 'egreso';
       
-      // Preparar payload con fecha o dejar que la base de datos use el default si está vacía
       const payload = {
         concepto: data.concepto,
         cantidad: data.cantidad,
@@ -105,26 +201,193 @@ export default function RecivosPage(): React.ReactElement {
         text: `¡${formType === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado con éxito!`,
       });
 
-      // Limpiar formulario excepto la fecha que se reinicia a ahora
-      const now = new Date().toISOString().substring(0, 16);
+      // Limpiar formulario financiero
+      const now = getInitialDateTime();
       if (formType === 'ingreso') {
         setIngresoForm({ concepto: '', cantidad: 0, comprobante: '', fecha: now });
       } else {
         setEgresoForm({ concepto: '', cantidad: 0, comprobante: '', fecha: now });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+      const errorMsg = err instanceof Error ? err.message : 'Error desconocido';
       setMessage({
         type: 'error',
-        text: `Error al registrar en Supabase: ${err.message || 'Error desconocido'}`,
+        text: `Error al registrar en Supabase: ${errorMsg}`,
       });
     } finally {
       setLoading(false);
     }
   };
 
+  // Mostrar indicador de carga mientras se verifica el token/sesión en localStorage/cookies
+  if (checkingAuth) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTop: '3px solid var(--primary)', borderRadius: '50%', animation: 'pulseGlow 1.5s infinite' }} />
+        <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem' }}>Verificando credenciales de administrador...</p>
+      </div>
+    );
+  }
+
+  // --- Vista 1: Formulario de Acceso (No Autenticado) ---
+  if (!user) {
+    return (
+      <div className="adminContainer" style={{ maxWidth: '480px', margin: '5rem auto', padding: '2rem' }}>
+        <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+          <Link href="/" className="btnSecondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al Inicio
+          </Link>
+          <h2 className="heroTitle" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+            Acceso Administrativo
+          </h2>
+          <p className="heroSubtitle" style={{ fontSize: '0.95rem', margin: 0 }}>
+            Debes iniciar sesión con tu cuenta de administrador para registrar ingresos y egresos.
+          </p>
+        </div>
+
+        {message && (
+          <div
+            style={{
+              padding: '1rem',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1.5rem',
+              backgroundColor: message.type === 'success' ? 'var(--success-glow)' : 'rgba(239, 68, 68, 0.15)',
+              border: `1px solid ${message.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
+              color: message.type === 'success' ? 'var(--success)' : 'var(--danger)',
+              fontSize: '0.9rem',
+            }}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <div className="card" style={{ cursor: 'default' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+            <button
+              className={authMode === 'login' ? 'btnPrimary' : 'btnSecondary'}
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={() => { setAuthMode('login'); setMessage(null); }}
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              className={authMode === 'register' ? 'btnPrimary' : 'btnSecondary'}
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={() => { setAuthMode('register'); setMessage(null); }}
+            >
+              Registrarse
+            </button>
+          </div>
+
+          <form onSubmit={handleAuthSubmit}>
+            {authMode === 'register' && (
+              <>
+                <div className="formGroup">
+                  <label className="formLabel" htmlFor="nombre">Nombre Completo</label>
+                  <input
+                    id="nombre"
+                    name="nombre"
+                    type="text"
+                    className="formInput"
+                    placeholder="Ej. Juan Pérez"
+                    value={authForm.nombre}
+                    onChange={handleAuthInputChange}
+                    required
+                  />
+                </div>
+                <div className="formGroup">
+                  <label className="formLabel" htmlFor="telefono">Teléfono</label>
+                  <input
+                    id="telefono"
+                    name="telefono"
+                    type="tel"
+                    className="formInput"
+                    placeholder="Ej. 7777-7777"
+                    value={authForm.telefono}
+                    onChange={handleAuthInputChange}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="formGroup">
+              <label className="formLabel" htmlFor="email">Correo Electrónico</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="formInput"
+                placeholder="ejemplo@correo.com"
+                value={authForm.email}
+                onChange={handleAuthInputChange}
+                required
+              />
+            </div>
+
+            <div className="formGroup">
+              <label className="formLabel" htmlFor="password">Contraseña</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                className="formInput"
+                placeholder="••••••••"
+                value={authForm.password}
+                onChange={handleAuthInputChange}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btnPrimary"
+              disabled={authLoading}
+              style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}
+            >
+              {authLoading ? 'Procesando...' : authMode === 'login' ? 'Iniciar Sesión' : 'Registrarse'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Vista 2: Registro de Recibos (Usuario Autenticado) ---
   return (
     <div className="adminContainer" style={{ maxWidth: '600px', margin: '3rem auto', padding: '2rem' }}>
+      
+      {/* Panel Superior del Usuario */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: 'var(--background-card)', 
+        border: '1px solid var(--border)', 
+        padding: '0.75rem 1.25rem', 
+        borderRadius: 'var(--radius-sm)', 
+        marginBottom: '2rem' 
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+          <span style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)' }}>
+            Sesión: <strong>{user.email}</strong>
+          </span>
+        </div>
+        <button 
+          onClick={handleLogout} 
+          className="btnSecondary" 
+          disabled={loading} 
+          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
+        >
+          Cerrar Sesión
+        </button>
+      </div>
+
       <div style={{ marginBottom: '2rem' }}>
         <Link href="/" className="btnSecondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

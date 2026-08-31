@@ -10,8 +10,16 @@ Cantidad : number
 FormaDePago : PAY_METHOD_ENUM
 }
 
-export interface IRecivoEgreso{
-
+export interface IRecivoEgreso {
+  Id: string;
+  Correlativo: number;
+  From: string;
+  Recive: string;
+  Fecha: Date;
+  Concepto: string;
+  Direccion: string;
+  Cantidad: number;
+  FormaDePago: PAY_METHOD_ENUM;
 }
 
 export enum PAY_METHOD_ENUM{
