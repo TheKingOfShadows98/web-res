@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import Link from 'next/link';
 
 interface NavbarProps {
   onOpenPortal: () => void;
@@ -34,7 +35,7 @@ export default function Navbar({ onOpenPortal }: NavbarProps): React.ReactElemen
           <a href="#noticias" className="navLink">Transparencia</a>
         </div>
 
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button className="btnPrimary" onClick={onOpenPortal}>
             {/* Icono de usuario SVG */}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,6 +44,16 @@ export default function Navbar({ onOpenPortal }: NavbarProps): React.ReactElemen
             </svg>
             Acceso Vecinal
           </button>
+
+          <Link href="/admin" className="btnSecondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            {/* Icono de login / acceso */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            Ingresar
+          </Link>
         </div>
       </div>
     </nav>
