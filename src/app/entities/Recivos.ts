@@ -46,10 +46,18 @@ export interface IEgreso {
   fecha?: Date | string;
 }
 
+export enum UserRole {
+  MIEMBRO = 0,
+  COLABORADOR = 1,
+  ADMINISTRADOR = 2,
+  AUDITOR = 3,
+  OWNER = 4,
+}
+
 export interface IUsuario {
   id: string;
   nombre: string;
   correo: string;
-  rol: number;
+  rol: UserRole | number;
   telefono: string;
 }

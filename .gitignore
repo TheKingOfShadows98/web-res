@@ -18,7 +18,7 @@
 /out/
 
 #Scripts
-/scripts
+/scripts/*
 
 #agents
 .agents/*

@@ -8,17 +8,7 @@
 
 import React from 'react';
 
-interface HeroProps {
-  onOpenPortal: () => void;
-}
-
-/**
- * Hero Banner principal de la página web con animaciones y estilos premium.
- * 
- * @param {HeroProps} props - Propiedades del componente hero.
- * @returns {React.ReactElement} El banner hero renderizado.
- */
-export default function Hero({ onOpenPortal }: HeroProps): React.ReactElement {
+export default function Hero(): React.ReactElement {
   return (
     <header id="inicio" className="hero">
       <div className="heroContainer">
@@ -33,21 +23,20 @@ export default function Hero({ onOpenPortal }: HeroProps): React.ReactElement {
         
         <p className="heroSubtitle">
           Bienvenido al Portal de la Asociación de Desarrollo Comunal de Residencial México.
-          Simplifica tus pagos, genera pases QR de visitantes instantáneos, reserva áreas comunes y mantente informado en tiempo real.
+          Trabajando juntos por el orden, la transparencia financiera y el bienestar de todas nuestras familias.
         </p>
         
         <div className="heroActions">
-          <button className="btnPrimary" onClick={onOpenPortal}>
-            {/* Icono de llave/acceso SVG */}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          <a href="#estadisticas" className="btnPrimary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
             </svg>
-            Ingresar al Portal Vecinal
-          </button>
+            Ver Transparencia
+          </a>
           
           <a href="#servicios" className="btnSecondary">
-            Explorar Servicios
+            Servicios Comunitarios
           </a>
         </div>
       </div>

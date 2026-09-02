@@ -40,32 +40,16 @@ export default function Footer(): React.ReactElement {
 
           <div>
             <h4 className="footerColTitle">Contacto Directo</h4>
-            <ul className="footerLinks">
-              <li className="footerLink">📍 Av. Principal #1, Residencial México</li>
-              <li className="footerLink">✉️ junta.directiva@resmexico.org</li>
-              <li className="footerLink">📞 +503 2200-0000 (Administración)</li>
-            </ul>
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Próximamente
+            </p>
           </div>
 
           <div>
             <h4 className="footerColTitle">Emergencias</h4>
-            <ul className="footerLinks">
-              <li>
-                <a href="tel:+50322000001" className="footerLink footerEmergency">
-                  🚨 +503 2200-0001 (Seguridad Caseta)
-                </a>
-              </li>
-              <li>
-                <a href="tel:911" className="footerLink">
-                  📞 911 (Policía Nacional Civil)
-                </a>
-              </li>
-              <li>
-                <a href="tel:913" className="footerLink">
-                  🚒 913 (Cuerpo de Bomberos)
-                </a>
-              </li>
-            </ul>
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Próximamente
+            </p>
           </div>
         </div>
 

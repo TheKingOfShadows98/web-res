@@ -10,12 +10,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import { UserRole } from '@/app/entities/Recivos';
+
+const roleLabels: Record<number, { name: string; color: string }> = {
+  [UserRole.OWNER]: { name: 'Owner', color: '#8b5cf6' },
+  [UserRole.ADMINISTRADOR]: { name: 'Administrador', color: '#10b981' },
+  [UserRole.AUDITOR]: { name: 'Auditor', color: '#3b82f6' },
+  [UserRole.COLABORADOR]: { name: 'Colaborador', color: '#f59e0b' },
+  [UserRole.MIEMBRO]: { name: 'Miembro', color: '#64748b' },
+};
 
 export default function AdminHubPage(): React.ReactElement {
   const supabase = useMemo(() => createClient(), []);
 
   // Estados de autenticación
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<number>(UserRole.MIEMBRO);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authLoading, setAuthLoading] = useState<boolean>(false);
@@ -28,12 +38,22 @@ export default function AdminHubPage(): React.ReactElement {
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Monitorear sesión de usuario
+  // Monitorear sesión de usuario y obtener rol
   useEffect(() => {
     const checkUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        if (user) {
+          const { data: profile } = await supabase
+            .from('usuario')
+            .select('rol')
+            .eq('id', user.id)
+            .single();
+          if (profile) {
+            setUserRole(profile.rol ?? UserRole.MIEMBRO);
+          }
+        }
       } catch (err) {
         console.error('Error al verificar sesión:', err);
       } finally {
@@ -42,8 +62,18 @@ export default function AdminHubPage(): React.ReactElement {
     };
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user || null);
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('usuario')
+          .select('rol')
+          .eq('id', session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.rol ?? UserRole.MIEMBRO);
+        }
+      }
     });
 
     return () => {
@@ -282,6 +312,8 @@ export default function AdminHubPage(): React.ReactElement {
     );
   }
 
+  const roleInfo = roleLabels[userRole] || roleLabels[UserRole.MIEMBRO];
+
   // Vista 2: Dashboard Central del Administrador (Autenticado)
   return (
     <div className="adminContainer" style={{ maxWidth: '1000px', margin: '3rem auto', padding: '0 2rem' }}>
@@ -298,9 +330,23 @@ export default function AdminHubPage(): React.ReactElement {
           <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--foreground)' }}>
             Panel de Administración ADESCO
           </h1>
-          <p style={{ color: 'var(--foreground-muted)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-            Bienvenido, <strong style={{ color: 'var(--foreground)' }}>{user.email}</strong>
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.95rem' }}>
+              Usuario: <strong style={{ color: 'var(--foreground)' }}>{user.email}</strong>
+            </p>
+            <span style={{
+              background: `${roleInfo.color}20`,
+              color: roleInfo.color,
+              border: `1px solid ${roleInfo.color}60`,
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase'
+            }}>
+              {roleInfo.name}
+            </span>
+          </div>
         </div>
 
         <div>
@@ -336,7 +382,7 @@ export default function AdminHubPage(): React.ReactElement {
       {/* Grid de Secciones del Panel */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
         
-        {/* Sección Activa: Finanzas */}
+        {/* Sección: Finanzas */}
         <div style={{
           background: 'var(--background-card)',
           border: '1px solid var(--border)',
@@ -410,6 +456,73 @@ export default function AdminHubPage(): React.ReactElement {
                 <line x1="9" y1="15" x2="15" y2="15"></line>
               </svg>
               Registrar Movimiento / Recibo
+            </Link>
+          </div>
+        </div>
+
+        {/* Sección: Usuarios y Roles */}
+        <div style={{
+          background: 'var(--background-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '4px',
+            height: '100%',
+            background: '#8b5cf6'
+          }} />
+          
+          <div>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'rgba(139, 92, 246, 0.15)',
+              color: '#8b5cf6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1.25rem'
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--foreground)' }}>
+              Gestión de Usuarios y Roles
+            </h3>
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+              Administración de miembros, asignación de permisos (Owner, Administrador, Auditor, Colaborador) y creación de nuevos usuarios.
+            </p>
+          </div>
+
+          <div>
+            <Link
+              href="/admin/usuarios"
+              className="btnPrimary"
+              style={{ width: '100%', justifyContent: 'center', padding: '0.75rem 1rem', background: '#8b5cf6' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <line x1="19" y1="8" x2="19" y2="14"></line>
+                <line x1="22" y1="11" x2="16" y2="11"></line>
+              </svg>
+              Gestionar Usuarios y Roles
             </Link>
           </div>
         </div>
