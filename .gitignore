@@ -42,6 +42,8 @@ yarn-error.log*
 # vercel
 .vercel
 
+#db migrations
+supabase/*
 
 # typescript
 *.tsbuildinfo
