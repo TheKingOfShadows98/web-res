@@ -32,18 +32,24 @@ BITCOIN
 
 export interface IIngreso {
   id?: number;
+  correlativo?: string;
   concepto: string;
   cantidad: number;
   comprobante?: string;
   fecha?: Date | string;
+  hash?: string;
+  prev_hash?: string;
 }
 
 export interface IEgreso {
   id?: number;
+  correlativo?: string;
   concepto: string;
   cantidad: number;
   comprobante?: string;
   fecha?: Date | string;
+  hash?: string;
+  prev_hash?: string;
 }
 
 export enum UserRole {

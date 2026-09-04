@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { IIngreso, IEgreso } from '@/app/entities/Recivos';
+import { generateReceiptHash } from '@/utils/crypto';
 
 const getInitialDateTime = (): string => {
   const now = new Date();
@@ -40,12 +41,14 @@ export default function RecivosPage(): React.ReactElement {
   // Estados del formulario financiero
   const [activeTab, setActiveTab] = useState<'ingreso' | 'egreso'>('ingreso');
   const [ingresoForm, setIngresoForm] = useState<Omit<IIngreso, 'id'>>(() => ({
+    correlativo: '',
     concepto: '',
     cantidad: 0,
     comprobante: '',
     fecha: getInitialDateTime(),
   }));
   const [egresoForm, setEgresoForm] = useState<Omit<IEgreso, 'id'>>(() => ({
+    correlativo: '',
     concepto: '',
     cantidad: 0,
     comprobante: '',
@@ -184,12 +187,32 @@ export default function RecivosPage(): React.ReactElement {
 
     try {
       const dbTable = formType === 'ingreso' ? 'ingreso' : 'egreso';
-      
-      const payload = {
-        concepto: data.concepto,
+
+      // 1. Obtener el hash del registro anterior para encadenamiento criptográfico
+      const { data: lastRows } = await supabase
+        .from(dbTable)
+        .select('hash')
+        .order('id', { ascending: false })
+        .limit(1);
+
+      const prevHash = (lastRows && lastRows.length > 0 && lastRows[0].hash) ? String(lastRows[0].hash) : '';
+
+      // 2. Construir payload determinista
+      const payloadToHash = {
+        correlativo: String(data.correlativo || '').trim(),
+        concepto: data.concepto.trim(),
         cantidad: data.cantidad,
-        comprobante: data.comprobante || null,
+        comprobante: data.comprobante ? data.comprobante.trim() : null,
         fecha: data.fecha ? new Date(data.fecha as string).toISOString() : new Date().toISOString(),
+        prev_hash: prevHash,
+      };
+
+      // 3. Generar firma SHA-256
+      const hash = await generateReceiptHash(payloadToHash);
+
+      const payload = {
+        ...payloadToHash,
+        hash,
       };
 
       const { error } = await supabase.from(dbTable).insert([payload]);
@@ -198,15 +221,15 @@ export default function RecivosPage(): React.ReactElement {
 
       setMessage({
         type: 'success',
-        text: `¡${formType === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado con éxito!`,
+        text: `¡${formType === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado con éxito con firma criptográfica!`,
       });
 
       // Limpiar formulario financiero
       const now = getInitialDateTime();
       if (formType === 'ingreso') {
-        setIngresoForm({ concepto: '', cantidad: 0, comprobante: '', fecha: now });
+        setIngresoForm({ correlativo: '', concepto: '', cantidad: 0, comprobante: '', fecha: now });
       } else {
-        setEgresoForm({ concepto: '', cantidad: 0, comprobante: '', fecha: now });
+        setEgresoForm({ correlativo: '', concepto: '', cantidad: 0, comprobante: '', fecha: now });
       }
     } catch (err) {
       console.error(err);
@@ -453,6 +476,19 @@ export default function RecivosPage(): React.ReactElement {
         </h3>
 
         <form onSubmit={(e) => handleSubmit(e, activeTab)}>
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="correlativo">Nº Correlativo / Recibo (Opcional)</label>
+            <input
+              id="correlativo"
+              name="correlativo"
+              type="text"
+              className="formInput"
+              placeholder="Ej. REC-001, 1024, etc."
+              value={activeTab === 'ingreso' ? (ingresoForm.correlativo || '') : (egresoForm.correlativo || '')}
+              onChange={(e) => handleInputChange(e, activeTab)}
+            />
+          </div>
+
           <div className="formGroup">
             <label className="formLabel" htmlFor="concepto">Concepto / Descripción</label>
             <input

@@ -10,12 +10,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import MonthlyFinanceChart from '@/components/finance/MonthlyFinanceChart';
+import { THEME_COLORS } from '@/styles/colors';
 
-interface DailyActivity {
+export interface TransactionMovement {
+  id: number | string;
+  tipo: 'ingreso' | 'egreso';
+  correlativo: string;
+  concepto: string;
+  cantidad: number;
+  comprobante?: string | null;
+  hash: string;
+  prev_hash?: string;
+  fecha: string;
+}
+
+export interface DailyActivity {
   date: string;
   ingreso: number;
   egreso: number;
   diferencia: number;
+  movements: TransactionMovement[];
 }
 
 export default function FinanzasDashboard(): React.ReactElement {
@@ -39,6 +54,8 @@ export default function FinanzasDashboard(): React.ReactElement {
   const [ingresosMes, setIngresosMes] = useState<number>(0);
   const [egresosMes, setEgresosMes] = useState<number>(0);
   const [dailyActivities, setDailyActivities] = useState<DailyActivity[]>([]);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   // Estados de UI
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -80,60 +97,91 @@ export default function FinanzasDashboard(): React.ReactElement {
         if (errAllIng) throw errAllIng;
         if (errAllEgr) throw errAllEgr;
 
-        const totalHistIngresos = allIngresos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
-        const totalHistEgresos = allEgresos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+        const totalHistIngresos = (allIngresos || []).reduce((sum, item) => sum + (item.cantidad || 0), 0);
+        const totalHistEgresos = (allEgresos || []).reduce((sum, item) => sum + (item.cantidad || 0), 0);
         setBalanceGeneral(totalHistIngresos - totalHistEgresos);
 
-        // B. Cargar datos de la ventana de últimos 30 días
+        // B. Cargar datos de la ventana de últimos 30 días con correlativo y hash
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 30);
         const limitStr = limitDate.toISOString();
 
         const { data: monthlyIngresos, error: errMonIng } = await supabase
           .from('ingreso')
-          .select('cantidad, fecha')
+          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
           .gte('fecha', limitStr);
 
         const { data: monthlyEgresos, error: errMonEgr } = await supabase
           .from('egreso')
-          .select('cantidad, fecha')
+          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
           .gte('fecha', limitStr);
 
         if (errMonIng) throw errMonIng;
         if (errMonEgr) throw errMonEgr;
 
-        const totalMonIngresos = monthlyIngresos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
-        const totalMonEgresos = monthlyEgresos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+        const totalMonIngresos = (monthlyIngresos || []).reduce((sum, item) => sum + (item.cantidad || 0), 0);
+        const totalMonEgresos = (monthlyEgresos || []).reduce((sum, item) => sum + (item.cantidad || 0), 0);
         setIngresosMes(totalMonIngresos);
         setEgresosMes(totalMonEgresos);
 
         // C. Agrupar movimientos diarios del último mes
-        const dailyMap: { [key: string]: { ingreso: number; egreso: number } } = {};
+        const dailyMap: { [key: string]: { ingreso: number; egreso: number; movements: TransactionMovement[] } } = {};
 
-        monthlyIngresos.forEach((item) => {
+        (monthlyIngresos || []).forEach((item) => {
           if (!item.fecha) return;
-          // Formatear fecha local (YYYY-MM-DD)
           const dateStr = new Date(item.fecha).toISOString().split('T')[0];
-          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0 };
+          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0, movements: [] };
           dailyMap[dateStr].ingreso += item.cantidad || 0;
+          dailyMap[dateStr].movements.push({
+            id: item.id,
+            tipo: 'ingreso',
+            correlativo: item.correlativo || '',
+            concepto: item.concepto || 'Ingreso sin concepto',
+            cantidad: item.cantidad || 0,
+            comprobante: item.comprobante || null,
+            hash: item.hash || '',
+            prev_hash: item.prev_hash || '',
+            fecha: item.fecha,
+          });
         });
 
-        monthlyEgresos.forEach((item) => {
+        (monthlyEgresos || []).forEach((item) => {
           if (!item.fecha) return;
           const dateStr = new Date(item.fecha).toISOString().split('T')[0];
-          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0 };
+          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0, movements: [] };
           dailyMap[dateStr].egreso += item.cantidad || 0;
+          dailyMap[dateStr].movements.push({
+            id: item.id,
+            tipo: 'egreso',
+            correlativo: item.correlativo || '',
+            concepto: item.concepto || 'Egreso sin concepto',
+            cantidad: item.cantidad || 0,
+            comprobante: item.comprobante || null,
+            hash: item.hash || '',
+            prev_hash: item.prev_hash || '',
+            fecha: item.fecha,
+          });
         });
 
         // Convertir mapa a lista y ordenar descendente por fecha
         const activitiesList: DailyActivity[] = Object.keys(dailyMap).map((date) => {
           const ing = dailyMap[date].ingreso;
           const egr = dailyMap[date].egreso;
+
+          // Ordenar movimientos por fecha e inserción más reciente a más antiguo
+          const sortedMovements = [...dailyMap[date].movements].sort((a, b) => {
+            const timeA = new Date(a.fecha).getTime();
+            const timeB = new Date(b.fecha).getTime();
+            if (timeB !== timeA) return timeB - timeA;
+            return Number(b.id || 0) - Number(a.id || 0);
+          });
+
           return {
             date,
             ingreso: ing,
             egreso: egr,
             diferencia: ing - egr,
+            movements: sortedMovements,
           };
         }).sort((a, b) => b.date.localeCompare(a.date));
 
@@ -432,6 +480,9 @@ export default function FinanzasDashboard(): React.ReactElement {
         </div>
       ) : (
         <>
+          {/* Módulo de Gráficas Mensuales con Selector de Mes y Año (>= 2025) */}
+          <MonthlyFinanceChart />
+
           {/* Tarjetas de Métricas principales */}
           <div style={{ 
             display: 'grid', 
@@ -440,11 +491,11 @@ export default function FinanzasDashboard(): React.ReactElement {
             marginBottom: '3rem' 
           }}>
             {/* Card: Balance General */}
-            <div className="card" style={{ cursor: 'default', borderLeft: `4px solid ${balanceGeneral >= 0 ? 'var(--primary)' : 'var(--danger)'}` }}>
+            <div className="card" style={{ cursor: 'default', borderLeft: `4px solid ${balanceGeneral >= 0 ? THEME_COLORS.balancePositive : THEME_COLORS.balanceNegative}` }}>
               <span className="sectionLabel" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Balance General Histórico</span>
               <h3 className="statValue" style={{ 
                 fontSize: '2.25rem', 
-                color: balanceGeneral >= 0 ? 'var(--primary)' : 'var(--danger)' 
+                color: balanceGeneral >= 0 ? THEME_COLORS.balancePositive : THEME_COLORS.balanceNegative 
               }}>
                 {formatCurrency(balanceGeneral)}
               </h3>
@@ -452,18 +503,18 @@ export default function FinanzasDashboard(): React.ReactElement {
             </div>
 
             {/* Card: Ingresos del Mes */}
-            <div className="card" style={{ cursor: 'default', borderLeft: '4px solid var(--success)' }}>
-              <span className="sectionLabel" style={{ fontSize: '0.75rem', color: 'var(--success)', marginBottom: '0.5rem' }}>Ingresos (Últimos 30 días)</span>
-              <h3 className="statValue" style={{ fontSize: '2.25rem', color: 'var(--success)' }}>
+            <div className="card" style={{ cursor: 'default', borderLeft: `4px solid ${THEME_COLORS.ingreso}` }}>
+              <span className="sectionLabel" style={{ fontSize: '0.75rem', color: THEME_COLORS.ingreso, marginBottom: '0.5rem' }}>Ingresos (Últimos 30 días)</span>
+              <h3 className="statValue" style={{ fontSize: '2.25rem', color: THEME_COLORS.ingreso }}>
                 {formatCurrency(ingresosMes)}
               </h3>
               <p className="statDesc" style={{ marginTop: '0.5rem' }}>Entradas de cuotas y aportaciones</p>
             </div>
 
             {/* Card: Egresos del Mes */}
-            <div className="card" style={{ cursor: 'default', borderLeft: '4px solid var(--danger)' }}>
-              <span className="sectionLabel" style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: '0.5rem' }}>Egresos (Últimos 30 días)</span>
-              <h3 className="statValue" style={{ fontSize: '2.25rem', color: 'var(--danger)' }}>
+            <div className="card" style={{ cursor: 'default', borderLeft: `4px solid ${THEME_COLORS.egreso}` }}>
+              <span className="sectionLabel" style={{ fontSize: '0.75rem', color: THEME_COLORS.egreso, marginBottom: '0.5rem' }}>Egresos (Últimos 30 días)</span>
+              <h3 className="statValue" style={{ fontSize: '2.25rem', color: THEME_COLORS.egreso }}>
                 {formatCurrency(egresosMes)}
               </h3>
               <p className="statDesc" style={{ marginTop: '0.5rem' }}>Salidas para servicios e insumos</p>
@@ -488,7 +539,7 @@ export default function FinanzasDashboard(): React.ReactElement {
               }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--foreground-muted)' }}>
-                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Fecha</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Fecha / Movimientos</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Ingresos ($)</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Egresos ($)</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Diferencia ($)</th>
@@ -502,35 +553,199 @@ export default function FinanzasDashboard(): React.ReactElement {
                       </td>
                     </tr>
                   ) : (
-                    dailyActivities.map((row) => (
-                      <tr 
-                        key={row.date} 
-                        style={{ 
-                          borderBottom: '1px solid var(--border)', 
-                          transition: 'background-color 0.2s',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 500 }}>
-                          {formatDateString(row.date)}
-                        </td>
-                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.ingreso > 0 ? 'var(--success)' : 'var(--foreground-muted)' }}>
-                          {row.ingreso > 0 ? `+ ${formatCurrency(row.ingreso)}` : '$0.00'}
-                        </td>
-                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.egreso > 0 ? 'var(--danger)' : 'var(--foreground-muted)' }}>
-                          {row.egreso > 0 ? `- ${formatCurrency(row.egreso)}` : '$0.00'}
-                        </td>
-                        <td style={{ 
-                          padding: '0.85rem 1rem', 
-                          textAlign: 'right', 
-                          fontWeight: 600,
-                          color: row.diferencia > 0 ? 'var(--primary)' : row.diferencia < 0 ? 'var(--danger)' : 'var(--foreground)'
-                        }}>
-                          {row.diferencia > 0 ? '+' : ''}{formatCurrency(row.diferencia)}
-                        </td>
-                      </tr>
-                    ))
+                    dailyActivities.map((row) => {
+                      const isExpanded = expandedDays.has(row.date);
+                      return (
+                        <React.Fragment key={row.date}>
+                          <tr 
+                            style={{ 
+                              borderBottom: isExpanded ? 'none' : '1px solid var(--border)', 
+                              backgroundColor: isExpanded ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onClick={() => {
+                              setExpandedDays((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(row.date)) {
+                                  next.delete(row.date);
+                                } else {
+                                  next.add(row.date);
+                                }
+                                return next;
+                              });
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isExpanded) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isExpanded) e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            <td style={{ padding: '0.85rem 1rem', fontWeight: 500 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                <svg 
+                                  width="14" 
+                                  height="14" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2.5" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                  style={{
+                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s ease',
+                                    color: 'var(--primary)'
+                                  }}
+                                >
+                                  <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                                <span>{formatDateString(row.date)}</span>
+                                <span style={{ 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.15rem 0.5rem', 
+                                  borderRadius: '12px', 
+                                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                                  color: 'var(--foreground-muted)' 
+                                }}>
+                                  {row.movements.length} {row.movements.length === 1 ? 'movimiento' : 'movimientos'}
+                                </span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.ingreso > 0 ? THEME_COLORS.ingreso : 'var(--foreground-muted)' }}>
+                              {row.ingreso > 0 ? `+ ${formatCurrency(row.ingreso)}` : '$0.00'}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.egreso > 0 ? THEME_COLORS.egreso : 'var(--foreground-muted)' }}>
+                              {row.egreso > 0 ? `- ${formatCurrency(row.egreso)}` : '$0.00'}
+                            </td>
+                            <td style={{ 
+                              padding: '0.85rem 1rem', 
+                              textAlign: 'right', 
+                              fontWeight: 600,
+                              color: row.diferencia > 0 ? THEME_COLORS.balancePositive : row.diferencia < 0 ? THEME_COLORS.balanceNegative : 'var(--foreground)'
+                            }}>
+                              {row.diferencia > 0 ? '+' : ''}{formatCurrency(row.diferencia)}
+                            </td>
+                          </tr>
+
+                          {/* Sub-tabla desplegable de transacciones */}
+                          {isExpanded && (
+                            <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                              <td colSpan={4} style={{ padding: '0.75rem 1rem 1.25rem 2.25rem' }}>
+                                <div style={{
+                                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  padding: '1rem',
+                                  overflowX: 'auto'
+                                }}>
+                                  <h4 style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Desglose de transacciones ({formatDateString(row.date)})
+                                  </h4>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--foreground-muted)' }}>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Correlativo</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Concepto</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Tipo</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: 600 }}>Monto</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Firma Hash (SHA-256)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {row.movements.map((mov, idx) => (
+                                        <tr key={mov.id || idx} style={{ borderBottom: idx < row.movements.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                          <td style={{ padding: '0.5rem 0.6rem', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--foreground)' }}>
+                                            {mov.correlativo ? (
+                                              <span style={{ 
+                                                padding: '0.15rem 0.4rem', 
+                                                backgroundColor: 'rgba(255, 255, 255, 0.08)', 
+                                                borderRadius: '4px',
+                                                fontWeight: 600
+                                              }}>
+                                                #{mov.correlativo}
+                                              </span>
+                                            ) : (
+                                              <span style={{ color: 'var(--foreground-muted)' }}>—</span>
+                                            )}
+                                          </td>
+                                          <td style={{ padding: '0.5rem 0.6rem', color: 'var(--foreground)' }}>
+                                            {mov.concepto}
+                                          </td>
+                                          <td style={{ padding: '0.5rem 0.6rem' }}>
+                                            <span style={{
+                                              fontSize: '0.75rem',
+                                              padding: '0.2rem 0.5rem',
+                                              borderRadius: '4px',
+                                              fontWeight: 600,
+                                              backgroundColor: mov.tipo === 'ingreso' ? THEME_COLORS.ingresoGlow : THEME_COLORS.egresoGlow,
+                                              color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso,
+                                              border: `1px solid ${mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso}`,
+                                              textTransform: 'uppercase'
+                                            }}>
+                                              {mov.tipo}
+                                            </span>
+                                          </td>
+                                          <td style={{ 
+                                            padding: '0.5rem 0.6rem', 
+                                            textAlign: 'right', 
+                                            fontWeight: 600,
+                                            color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso 
+                                          }}>
+                                            {mov.tipo === 'ingreso' ? '+' : '-'}{formatCurrency(mov.cantidad)}
+                                          </td>
+                                          <td style={{ padding: '0.5rem 0.6rem' }}>
+                                            {mov.hash ? (
+                                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <code 
+                                                  title={`Hash Completo: ${mov.hash}\nPrev Hash: ${mov.prev_hash || '(Ninguno)'}`}
+                                                  style={{
+                                                    fontFamily: 'var(--font-mono)',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'rgba(0,0,0,0.4)',
+                                                    padding: '0.2rem 0.4rem',
+                                                    borderRadius: '4px',
+                                                    color: 'var(--foreground-muted)',
+                                                    border: '1px solid var(--border)',
+                                                    maxWidth: '160px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    display: 'inline-block'
+                                                  }}
+                                                >
+                                                  {mov.hash.slice(0, 8)}...{mov.hash.slice(-6)}
+                                                </code>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigator.clipboard.writeText(mov.hash);
+                                                    setCopiedHash(mov.hash);
+                                                    setTimeout(() => setCopiedHash(null), 2000);
+                                                  }}
+                                                  className="btnSecondary"
+                                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+                                                  title="Copiar Hash SHA-256 completo"
+                                                >
+                                                  {copiedHash === mov.hash ? '¡Copiado!' : 'Copiar'}
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>Sin firma</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
