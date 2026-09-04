@@ -19,10 +19,9 @@ export default function Navbar(): React.ReactElement {
         </a>
 
         <div className="navLinks">
-          <a href="#inicio" className="navLink">Inicio</a>
-          <a href="#servicios" className="navLink">Servicios</a>
-          <a href="#estadisticas" className="navLink">Transparencia</a>
-          <a href="#noticias" className="navLink">Contacto</a>
+          <Link href="/" className="navLink">Inicio</Link>
+          <Link href="/finanzas" className="navLink">Finanzas</Link>
+          {/*<Link href="/#contacto" className="navLink">Contacto</Link>*/}
         </div>
 
         <div>

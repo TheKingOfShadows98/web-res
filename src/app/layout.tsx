@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ADESCO Residencial México - Portal de Gestión Comunal",
+  title: "Residencial México - Portal de Gestión Comunal",
   description: "Portal oficial de la Asociación de Desarrollo Comunal de Residencial México. Seguridad, Finanzas y Reservas.",
 };
 

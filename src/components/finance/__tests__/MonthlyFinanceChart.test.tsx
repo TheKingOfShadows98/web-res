@@ -156,4 +156,33 @@ describe('MonthlyFinanceChart Component', () => {
     rerender(<MonthlyFinanceChart year={2026} month={9} hideFilterControls={true} />); // Octubre 2026
     expect(await screen.findByText(/Rendimiento Mensual: Octubre 2026/i)).toBeInTheDocument();
   });
+
+  it('renderiza datos pasados por props sin invocar supabase y calcula correctamente en GMT-6', async () => {
+    const mockIngresos = [
+      { cantidad: 1200, fecha: '2026-09-02T02:00:00.000Z' }, // 1 de Septiembre 20:00 GMT-6
+    ];
+    const mockEgresos = [
+      { cantidad: 400, fecha: '2026-09-15T18:00:00.000Z' },
+    ];
+
+    render(
+      <MonthlyFinanceChart
+        year={2026}
+        month={8} // Septiembre
+        hideFilterControls={true}
+        ingresosData={mockIngresos}
+        egresosData={mockEgresos}
+        loading={false}
+      />
+    );
+
+    // No debe llamar a Supabase (petición única en el padre)
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    // 1200 - 400 = +$800.00
+    expect(screen.getByText(/Rendimiento Mensual: Septiembre 2026/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$800\.00/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+\$1,200\.00/i)).toBeInTheDocument();
+    expect(screen.getByText(/-\$400\.00/i)).toBeInTheDocument();
+  });
 });

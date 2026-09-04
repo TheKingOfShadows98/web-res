@@ -15,6 +15,7 @@ import MonthlyFinanceChart from '@/components/finance/MonthlyFinanceChart';
 import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS } from '@/styles/colors';
 import { TransactionMovement, DailyActivity } from '@/app/admin/finanzas/page';
+import { getGMT6MonthRange, getGMT6DayAndDate } from '@/utils/date';
 
 export interface ConceptSummary {
   concepto: string;
@@ -70,11 +71,7 @@ export default function FinanzasPage(): React.ReactElement {
   }, []);
 
   const formatDateString = useCallback((dateStr: string) => {
-    const parts = dateStr.split('T')[0].split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
+    return getGMT6DayAndDate(dateStr).formattedDisplay;
   }, []);
 
   // 1. Cargar métricas globales históricas
@@ -97,7 +94,7 @@ export default function FinanzasPage(): React.ReactElement {
           setBalanceTotalHistorico(sumIng - sumEgr);
         }
       } catch (err) {
-        console.error('Error al cargar métricas globales de transparencia:', err);
+        console.error('Error al cargar métricas globales de finanzas:', err);
       }
     };
 
@@ -107,16 +104,14 @@ export default function FinanzasPage(): React.ReactElement {
     };
   }, [supabase]);
 
-  // 2. Cargar transacciones del mes seleccionado
+  // 2. Cargar transacciones del mes seleccionado en una sola tanda en GMT-6
   useEffect(() => {
     let isMounted = true;
 
     const fetchPeriodTransactions = async () => {
       setLoadingData(true);
       try {
-        const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-        const startIso = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
-        const endIso = new Date(Date.UTC(selectedYear, selectedMonth, lastDayOfMonth, 23, 59, 59, 999)).toISOString();
+        const { startIso, endIso } = getGMT6MonthRange(selectedYear, selectedMonth);
 
         const { data: ingresos, error: errIng } = await supabase
           .from('ingreso')
@@ -168,23 +163,23 @@ export default function FinanzasPage(): React.ReactElement {
         ingMovements.sort(sortDesc);
         egrMovements.sort(sortDesc);
 
-        // Agrupar movimientos diarios
+        // Agrupar movimientos diarios usando fecha en GMT-6
         const dailyMap: { [key: string]: { ingreso: number; egreso: number; movements: TransactionMovement[] } } = {};
 
         ingMovements.forEach((item) => {
           if (!item.fecha) return;
-          const dateStr = new Date(item.fecha).toISOString().split('T')[0];
-          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0, movements: [] };
-          dailyMap[dateStr].ingreso += item.cantidad;
-          dailyMap[dateStr].movements.push(item);
+          const { dateString } = getGMT6DayAndDate(item.fecha);
+          if (!dailyMap[dateString]) dailyMap[dateString] = { ingreso: 0, egreso: 0, movements: [] };
+          dailyMap[dateString].ingreso += item.cantidad;
+          dailyMap[dateString].movements.push(item);
         });
 
         egrMovements.forEach((item) => {
           if (!item.fecha) return;
-          const dateStr = new Date(item.fecha).toISOString().split('T')[0];
-          if (!dailyMap[dateStr]) dailyMap[dateStr] = { ingreso: 0, egreso: 0, movements: [] };
-          dailyMap[dateStr].egreso += item.cantidad;
-          dailyMap[dateStr].movements.push(item);
+          const { dateString } = getGMT6DayAndDate(item.fecha);
+          if (!dailyMap[dateString]) dailyMap[dateString] = { ingreso: 0, egreso: 0, movements: [] };
+          dailyMap[dateString].egreso += item.cantidad;
+          dailyMap[dateString].movements.push(item);
         });
 
         const activitiesList: DailyActivity[] = Object.keys(dailyMap).map((date) => {
@@ -398,8 +393,15 @@ export default function FinanzasPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Gráfico Mensual Interactivo sincronizado con el período de la página */}
-          <MonthlyFinanceChart year={selectedYear} month={selectedMonth} hideFilterControls={true} />
+          {/* Gráfico Mensual Interactivo sincronizado con el período de la página (Petición Única) */}
+          <MonthlyFinanceChart
+            year={selectedYear}
+            month={selectedMonth}
+            hideFilterControls={true}
+            ingresosData={ingresosPeriodo}
+            egresosData={egresosPeriodo}
+            loading={loadingData}
+          />
 
           {/* ========================================================================= */}
           {/* SECCIÓN 1: TABLAS DE CONCEPTOS DE INGRESOS Y GASTOS DEL MES                */}

@@ -85,7 +85,7 @@ export default function QuickStats(): React.ReactElement {
   const balanceMesActual = ingresosMesActual - gastosMesActual;
 
   return (
-    <section id="transparencia" className="stats" style={{ padding: '5rem 1.5rem' }}>
+    <section id="finanzas" className="stats" style={{ padding: '5rem 1.5rem' }}>
       <div className="statsContainer" style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div className="sectionHeader" style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <span className="sectionLabel" style={{ color: THEME_COLORS.ingreso }}>Rendición de Cuentas</span>

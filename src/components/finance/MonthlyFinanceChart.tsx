@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS, CHART_COLORS } from '@/styles/colors';
+import { getGMT6MonthRange, getGMT6DayAndDate } from '@/utils/date';
 
 interface DayMovement {
   diaNumero: number;
@@ -44,6 +45,9 @@ export interface MonthlyFinanceChartProps {
   initialYear?: number;
   initialMonth?: number; // 0-11
   hideFilterControls?: boolean;
+  ingresosData?: Array<{ cantidad: number; fecha: string }>;
+  egresosData?: Array<{ cantidad: number; fecha: string }>;
+  loading?: boolean;
 }
 
 interface CustomTooltipProps {
@@ -105,11 +109,15 @@ export default function MonthlyFinanceChart({
   initialYear = new Date().getFullYear() >= START_YEAR ? new Date().getFullYear() : START_YEAR,
   initialMonth = new Date().getMonth(),
   hideFilterControls = false,
+  ingresosData,
+  egresosData,
+  loading: parentLoading,
 }: MonthlyFinanceChartProps): React.ReactElement {
   const supabase = useMemo(() => createClient(), []);
 
   // Determinar si el período es controlado externamente por la página
   const isControlled = year !== undefined && month !== undefined;
+  const isExternalData = ingresosData !== undefined && egresosData !== undefined;
 
   // Estados de período interno si no es controlado
   const [internalYear, setInternalYear] = useState<number>(initialYear);
@@ -119,11 +127,11 @@ export default function MonthlyFinanceChart({
   const selectedMonth = isControlled ? month : internalMonth;
   const shouldHideControls = hideFilterControls || isControlled;
 
-  // Estados de datos
-  const [loading, setLoading] = useState<boolean>(true);
-  const [chartData, setChartData] = useState<DayMovement[]>([]);
-  const [totalIngresos, setTotalIngresos] = useState<number>(0);
-  const [totalEgresos, setTotalEgresos] = useState<number>(0);
+  // Estados de datos para auto-consulta (fallback cuando no se pasan props)
+  const [internalLoading, setInternalLoading] = useState<boolean>(true);
+  const [internalChartData, setInternalChartData] = useState<DayMovement[]>([]);
+  const [internalTotalIngresos, setInternalTotalIngresos] = useState<number>(0);
+  const [internalTotalEgresos, setInternalTotalEgresos] = useState<number>(0);
 
   // Lista de años configurables desde 2025 hasta año actual + 2
   const availableYears = useMemo(() => {
@@ -141,18 +149,16 @@ export default function MonthlyFinanceChart({
     return new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(val);
   }, []);
 
-  // Cargar datos del mes seleccionado
+  // Cargar datos del mes seleccionado SOLO si no se suministran datos por props (evita peticiones duplicadas)
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   useEffect(() => {
-    let isMounted = true;
+    if (isExternalData) return;
 
+    let isMounted = true;
     const loadData = async () => {
       try {
-        // 1. Calcular rango de fechas: Día 1 al último día del mes
-        const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-        const startIso = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
-        const endIso = new Date(Date.UTC(selectedYear, selectedMonth, lastDayOfMonth, 23, 59, 59, 999)).toISOString();
+        const { startIso, endIso, lastDay } = getGMT6MonthRange(selectedYear, selectedMonth);
 
         const { data: ingresos, error: errIng } = await supabase
           .from('ingreso')
@@ -169,9 +175,8 @@ export default function MonthlyFinanceChart({
         if (errIng) throw errIng;
         if (errEgr) throw errEgr;
 
-        // 2. Mapear días del 1 al último día
         const dayMap: { [day: number]: { ingresos: number; egresos: number } } = {};
-        for (let d = 1; d <= lastDayOfMonth; d++) {
+        for (let d = 1; d <= lastDay; d++) {
           dayMap[d] = { ingresos: 0, egresos: 0 };
         }
 
@@ -180,28 +185,26 @@ export default function MonthlyFinanceChart({
 
         (ingresos || []).forEach((item) => {
           if (!item.fecha) return;
-          const itemDate = new Date(item.fecha);
-          const dayNum = itemDate.getUTCDate();
+          const { day } = getGMT6DayAndDate(item.fecha);
           const amount = Number(item.cantidad) || 0;
-          if (dayMap[dayNum]) {
-            dayMap[dayNum].ingresos += amount;
+          if (dayMap[day]) {
+            dayMap[day].ingresos += amount;
           }
           sumIng += amount;
         });
 
         (egresos || []).forEach((item) => {
           if (!item.fecha) return;
-          const itemDate = new Date(item.fecha);
-          const dayNum = itemDate.getUTCDate();
+          const { day } = getGMT6DayAndDate(item.fecha);
           const amount = Number(item.cantidad) || 0;
-          if (dayMap[dayNum]) {
-            dayMap[dayNum].egresos += amount;
+          if (dayMap[day]) {
+            dayMap[day].egresos += amount;
           }
           sumEgr += amount;
         });
 
         const series: DayMovement[] = [];
-        for (let d = 1; d <= lastDayOfMonth; d++) {
+        for (let d = 1; d <= lastDay; d++) {
           const ing = dayMap[d].ingresos;
           const egr = dayMap[d].egresos;
           series.push({
@@ -214,15 +217,15 @@ export default function MonthlyFinanceChart({
         }
 
         if (isMounted) {
-          setChartData(series);
-          setTotalIngresos(sumIng);
-          setTotalEgresos(sumEgr);
+          setInternalChartData(series);
+          setInternalTotalIngresos(sumIng);
+          setInternalTotalEgresos(sumEgr);
         }
       } catch (err) {
         console.error('Error al cargar datos mensuales para gráfica:', err);
       } finally {
         if (isMounted) {
-          setLoading(false);
+          setInternalLoading(false);
         }
       }
     };
@@ -232,11 +235,67 @@ export default function MonthlyFinanceChart({
     return () => {
       isMounted = false;
     };
-  }, [selectedYear, selectedMonth, refreshTrigger, supabase]);
+  }, [selectedYear, selectedMonth, refreshTrigger, supabase, isExternalData]);
 
-  const balanceFinalMes = useMemo(() => {
-    return totalIngresos - totalEgresos;
-  }, [totalIngresos, totalEgresos]);
+  // Procesamiento en memoria cuando se reciben datos externos (Cero peticiones redundantes)
+  const processedExternalData = useMemo(() => {
+    if (!isExternalData) return null;
+
+    const { lastDay } = getGMT6MonthRange(selectedYear, selectedMonth);
+    const dayMap: { [day: number]: { ingresos: number; egresos: number } } = {};
+    for (let d = 1; d <= lastDay; d++) {
+      dayMap[d] = { ingresos: 0, egresos: 0 };
+    }
+
+    let sumIng = 0;
+    let sumEgr = 0;
+
+    (ingresosData || []).forEach((item) => {
+      if (!item.fecha) return;
+      const { day } = getGMT6DayAndDate(item.fecha);
+      const amount = Number(item.cantidad) || 0;
+      if (dayMap[day]) {
+        dayMap[day].ingresos += amount;
+      }
+      sumIng += amount;
+    });
+
+    (egresosData || []).forEach((item) => {
+      if (!item.fecha) return;
+      const { day } = getGMT6DayAndDate(item.fecha);
+      const amount = Number(item.cantidad) || 0;
+      if (dayMap[day]) {
+        dayMap[day].egresos += amount;
+      }
+      sumEgr += amount;
+    });
+
+    const series: DayMovement[] = [];
+    for (let d = 1; d <= lastDay; d++) {
+      const ing = dayMap[d].ingresos;
+      const egr = dayMap[d].egresos;
+      series.push({
+        diaNumero: d,
+        diaLabel: `${d}`,
+        ingresos: ing,
+        egresos: egr,
+        balance: ing - egr,
+      });
+    }
+
+    return {
+      chartData: series,
+      totalIngresos: sumIng,
+      totalEgresos: sumEgr,
+      balance: sumIng - sumEgr,
+    };
+  }, [isExternalData, ingresosData, egresosData, selectedYear, selectedMonth]);
+
+  const loading = isExternalData ? Boolean(parentLoading) : internalLoading;
+  const chartData = processedExternalData ? processedExternalData.chartData : internalChartData;
+  const totalIngresos = processedExternalData ? processedExternalData.totalIngresos : internalTotalIngresos;
+  const totalEgresos = processedExternalData ? processedExternalData.totalEgresos : internalTotalEgresos;
+  const balanceFinalMes = processedExternalData ? processedExternalData.balance : (internalTotalIngresos - internalTotalEgresos);
 
   const isPositiveBalance = balanceFinalMes >= 0;
 
@@ -328,7 +387,7 @@ export default function MonthlyFinanceChart({
 
             <button
               onClick={() => {
-                setLoading(true);
+                setInternalLoading(true);
                 setRefreshTrigger((prev) => prev + 1);
               }}
               disabled={loading}
