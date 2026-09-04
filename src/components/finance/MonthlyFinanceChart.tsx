@@ -39,8 +39,11 @@ const MONTH_NAMES = [
 const START_YEAR = 2025;
 
 export interface MonthlyFinanceChartProps {
+  year?: number;
+  month?: number; // 0-11
   initialYear?: number;
   initialMonth?: number; // 0-11
+  hideFilterControls?: boolean;
 }
 
 interface CustomTooltipProps {
@@ -97,14 +100,24 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps): React.Re
 }
 
 export default function MonthlyFinanceChart({
+  year,
+  month,
   initialYear = new Date().getFullYear() >= START_YEAR ? new Date().getFullYear() : START_YEAR,
   initialMonth = new Date().getMonth(),
+  hideFilterControls = false,
 }: MonthlyFinanceChartProps): React.ReactElement {
   const supabase = useMemo(() => createClient(), []);
 
-  // Estados de período
-  const [selectedYear, setSelectedYear] = useState<number>(initialYear);
-  const [selectedMonth, setSelectedMonth] = useState<number>(initialMonth);
+  // Determinar si el período es controlado externamente por la página
+  const isControlled = year !== undefined && month !== undefined;
+
+  // Estados de período interno si no es controlado
+  const [internalYear, setInternalYear] = useState<number>(initialYear);
+  const [internalMonth, setInternalMonth] = useState<number>(initialMonth);
+
+  const selectedYear = isControlled ? year : internalYear;
+  const selectedMonth = isControlled ? month : internalMonth;
+  const shouldHideControls = hideFilterControls || isControlled;
 
   // Estados de datos
   const [loading, setLoading] = useState<boolean>(true);
@@ -260,75 +273,77 @@ export default function MonthlyFinanceChart({
           </p>
         </div>
 
-        {/* Controles de Selección de Mes y Año */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
-            <label htmlFor="select-mes" style={{ display: 'none' }}>Mes</label>
-            <select
-              id="select-mes"
-              aria-label="Seleccionar Mes"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              style={{
-                padding: '0.55rem 1rem',
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--foreground)',
-                fontSize: '0.9rem',
-                cursor: 'pointer'
-              }}
-            >
-              {MONTH_NAMES.map((name, idx) => (
-                <option key={name} value={idx}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Controles de Selección de Mes y Año (ocultos si se controla desde la página) */}
+        {!shouldHideControls && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <label htmlFor="select-mes" style={{ display: 'none' }}>Mes</label>
+              <select
+                id="select-mes"
+                aria-label="Seleccionar Mes"
+                value={selectedMonth}
+                onChange={(e) => setInternalMonth(Number(e.target.value))}
+                style={{
+                  padding: '0.55rem 1rem',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--foreground)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {MONTH_NAMES.map((name, idx) => (
+                  <option key={name} value={idx}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label htmlFor="select-anio" style={{ display: 'none' }}>Año</label>
-            <select
-              id="select-anio"
-              aria-label="Seleccionar Año"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              style={{
-                padding: '0.55rem 1rem',
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--foreground)',
-                fontSize: '0.9rem',
-                cursor: 'pointer'
-              }}
-            >
-              {availableYears.map((yr) => (
-                <option key={yr} value={yr}>
-                  {yr}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label htmlFor="select-anio" style={{ display: 'none' }}>Año</label>
+              <select
+                id="select-anio"
+                aria-label="Seleccionar Año"
+                value={selectedYear}
+                onChange={(e) => setInternalYear(Number(e.target.value))}
+                style={{
+                  padding: '0.55rem 1rem',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--foreground)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <button
-            onClick={() => {
-              setLoading(true);
-              setRefreshTrigger((prev) => prev + 1);
-            }}
-            disabled={loading}
-            className="btnSecondary"
-            style={{ padding: '0.55rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
-            {loading ? '...' : 'Actualizar'}
-          </button>
-        </div>
+            <button
+              onClick={() => {
+                setLoading(true);
+                setRefreshTrigger((prev) => prev + 1);
+              }}
+              disabled={loading}
+              className="btnSecondary"
+              style={{ padding: '0.55rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              {loading ? '...' : 'Actualizar'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tarjeta de Balance al Cierre del Mes (En Grande) */}

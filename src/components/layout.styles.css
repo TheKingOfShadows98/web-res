@@ -597,3 +597,43 @@
     text-align: center;
   }
 }
+
+/* --- UTILIDADES RESPONSIVE PARA TABLAS Y CONTENEDORES MÓVILES --- */
+.tableResponsiveContainer {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-sm);
+}
+
+.tableResponsiveContainer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableResponsiveContainer::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tableResponsiveContainer::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.tableResponsiveContainer::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-muted);
+}
+
+@media (max-width: 768px) {
+  .adminContainer {
+    padding: 1rem !important;
+    margin: 1.5rem auto !important;
+  }
+
+  .statValue {
+    font-size: 1.85rem !important;
+  }
+
+  .heroTitle {
+    font-size: 1.85rem !important;
+  }
+}

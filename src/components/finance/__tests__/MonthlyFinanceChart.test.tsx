@@ -132,4 +132,28 @@ describe('MonthlyFinanceChart Component', () => {
       expect(screen.getByText(/Rendimiento Mensual: Febrero 2026/i)).toBeInTheDocument();
     });
   });
+
+  it('en modo controlado oculta los selectores duplicados y responde a los props year y month del padre', async () => {
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({
+        gte: vi.fn().mockReturnValue({
+          lte: vi.fn().mockResolvedValue({
+            data: [{ cantidad: 500, fecha: '2026-05-15T12:00:00.000Z' }],
+            error: null,
+          }),
+        }),
+      }),
+    }));
+
+    const { rerender } = render(<MonthlyFinanceChart year={2026} month={4} hideFilterControls={true} />); // Mayo 2026
+
+    // No debe mostrar los selectores internos
+    expect(screen.queryByLabelText(/seleccionar mes/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/seleccionar año/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Rendimiento Mensual: Mayo 2026/i)).toBeInTheDocument();
+
+    // Actualizar props desde el componente padre
+    rerender(<MonthlyFinanceChart year={2026} month={9} hideFilterControls={true} />); // Octubre 2026
+    expect(await screen.findByText(/Rendimiento Mensual: Octubre 2026/i)).toBeInTheDocument();
+  });
 });
