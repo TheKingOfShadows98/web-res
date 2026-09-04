@@ -292,10 +292,10 @@ export default function FinanzasPage(): React.ReactElement {
                   Portal de Acceso Abierto
                 </span>
                 <h1 className="heroTitle" style={{ fontSize: '2.5rem', marginBottom: '0.5rem', marginTop: '0.25rem' }}>
-                  Transparencia y Rendición de Cuentas
+                  Finanzas y Transparencia
                 </h1>
                 <p className="heroSubtitle" style={{ fontSize: '1rem', margin: 0, maxWidth: '750px' }}>
-                  Consulta en tiempo real el estado de cuentas, balances auditables y desglose de movimientos de la ADESCO Residencial México.
+                  Consulta en tiempo real el estado financiero, balances auditables y desglose de movimientos de la ADESCO Residencial México.
                 </p>
               </div>
 
