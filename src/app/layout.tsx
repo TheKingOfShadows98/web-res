@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Residencial México - Portal de Gestión Comunal",
-  description: "Portal oficial de la Asociación de Desarrollo Comunal de Residencial México. Seguridad, Finanzas y Reservas.",
+  description: "Portal oficial de la Junta Directiva Elegida de la Residencial México.",
 };
 
 export default function RootLayout({

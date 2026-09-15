@@ -15,7 +15,7 @@ export default function Navbar(): React.ReactElement {
       <div className="navbarContainer">
         <a href="#" className="logo">
           <div className="logoIcon">RM</div>
-          <span>ADESCO Residencial México</span>
+          <span>Residencial México</span>
         </a>
 
         <div className="navLinks">

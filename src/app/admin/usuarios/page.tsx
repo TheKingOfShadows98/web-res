@@ -53,16 +53,17 @@ export default function UsuariosPage(): React.ReactElement {
   const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Estados del modal de creación de usuario
+  // Estados del modal de invitación de usuario
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [createLoading, setCreateLoading] = useState<boolean>(false);
-  const [createForm, setCreateForm] = useState({
+  const [inviteLoading, setInviteLoading] = useState<boolean>(false);
+  const [inviteForm, setInviteForm] = useState({
     email: '',
-    password: '',
-    nombre: '',
-    telefono: '',
     rol: UserRole.MIEMBRO as number,
   });
+
+  // Estados del modal de eliminación de usuario
+  const [userToDelete, setUserToDelete] = useState<IUsuario | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
 
   // Mensajes de feedback
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -168,6 +169,25 @@ export default function UsuariosPage(): React.ReactElement {
     return false;
   };
 
+  // Determinar si el usuario actual puede eliminar a un usuario objetivo según la jerarquía
+  const canDeleteUser = (targetUser: IUsuario): boolean => {
+    if (currentRole === UserRole.AUDITOR || currentRole === UserRole.COLABORADOR || currentRole === UserRole.MIEMBRO) {
+      return false;
+    }
+    if (targetUser.id === currentUser?.id) {
+      return false; // No se puede eliminar a uno mismo
+    }
+    if (currentRole === UserRole.OWNER) {
+      // Owner puede eliminar administradores, auditores, colaboradores y miembros
+      return Number(targetUser.rol) < UserRole.OWNER;
+    }
+    if (currentRole === UserRole.ADMINISTRADOR) {
+      // Administrador solo puede eliminar miembros y colaboradores
+      return Number(targetUser.rol) === UserRole.MIEMBRO || Number(targetUser.rol) === UserRole.COLABORADOR;
+    }
+    return false;
+  };
+
   // Opciones de roles asignables según el rol del usuario logueado
   const getAssignableRoles = (): number[] => {
     if (currentRole === UserRole.OWNER) {
@@ -205,55 +225,79 @@ export default function UsuariosPage(): React.ReactElement {
     }
   };
 
-  // Manejar creación de un nuevo usuario
-  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+  // Manejar envío de invitación a un nuevo usuario
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreateLoading(true);
+    setInviteLoading(true);
     setMessage(null);
 
     try {
-      // 1. Crear el usuario en Supabase Auth
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email: createForm.email,
-        password: createForm.password,
-        options: {
-          data: {
-            nombre: createForm.nombre,
-            telefono: createForm.telefono,
-          },
+      const res = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email: inviteForm.email,
+          rol: inviteForm.rol,
+        }),
       });
 
-      if (authErr) throw authErr;
+      const data = await res.json();
 
-      // 2. Si se asignó un rol mayor que Miembro (0), actualizarlo en la tabla usuario
-      if (authData.user && createForm.rol !== UserRole.MIEMBRO) {
-        await supabase
-          .from('usuario')
-          .update({ rol: createForm.rol })
-          .eq('id', authData.user.id);
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al enviar la invitación');
       }
 
       setMessage({
         type: 'success',
-        text: `Usuario ${createForm.email} creado con rol ${roleMeta[createForm.rol]?.name || 'Miembro'}.`,
+        text: `Invitación enviada exitosamente a ${inviteForm.email} con rol ${roleMeta[inviteForm.rol]?.name || 'Miembro'}. El enlace vencerá en 15 minutos.`,
       });
 
-      setCreateForm({
+      setInviteForm({
         email: '',
-        password: '',
-        nombre: '',
-        telefono: '',
         rol: UserRole.MIEMBRO,
       });
       setIsModalOpen(false);
       fetchUsers();
     } catch (err) {
-      console.error('Error al crear usuario:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Error al crear usuario';
+      console.error('Error al invitar usuario:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Error al invitar usuario';
       setMessage({ type: 'error', text: errorMsg });
     } finally {
-      setCreateLoading(false);
+      setInviteLoading(false);
+    }
+  };
+
+  // Manejar confirmación de eliminación de usuario
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+    setDeleteLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al eliminar usuario');
+      }
+
+      setMessage({
+        type: 'success',
+        text: `Usuario ${userToDelete.nombre || userToDelete.correo} eliminado correctamente.`,
+      });
+
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      console.error('Error al eliminar usuario:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Error al eliminar usuario';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -348,10 +392,10 @@ export default function UsuariosPage(): React.ReactElement {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#8b5cf6' }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
               </svg>
-              Crear Nuevo Usuario
+              Invitar Usuario
             </button>
           )}
         </div>
@@ -425,6 +469,7 @@ export default function UsuariosPage(): React.ReactElement {
                 users.map((item) => {
                   const meta = roleMeta[item.rol] || roleMeta[UserRole.MIEMBRO];
                   const canEdit = canModifyUserRole(item);
+                  const canDelete = canDeleteUser(item);
                   const isSelf = item.id === currentUser?.id;
 
                   return (
@@ -480,36 +525,68 @@ export default function UsuariosPage(): React.ReactElement {
                       </td>
 
                       <td style={{ padding: '1.2rem 1.5rem', textAlign: 'right' }}>
-                        {canEdit ? (
-                          <select
-                            value={item.rol}
-                            disabled={updatingId === item.id}
-                            onChange={(e) => handleRoleChange(item.id, Number(e.target.value))}
-                            aria-label={`Cambiar rol de ${item.nombre || item.correo}`}
-                            style={{
-                              padding: '0.45rem 0.8rem',
-                              background: 'rgba(0,0,0,0.3)',
-                              border: '1px solid var(--border)',
-                              borderRadius: 'var(--radius-sm)',
-                              color: 'var(--foreground)',
-                              fontSize: '0.85rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <option value={item.rol} disabled>
-                              Asignar Rol...
-                            </option>
-                            {assignableRoles.map((r) => (
-                              <option key={r} value={r}>
-                                {roleMeta[r]?.name}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.6rem' }}>
+                          {canEdit && (
+                            <select
+                              value={item.rol}
+                              disabled={updatingId === item.id}
+                              onChange={(e) => handleRoleChange(item.id, Number(e.target.value))}
+                              aria-label={`Cambiar rol de ${item.nombre || item.correo}`}
+                              style={{
+                                padding: '0.45rem 0.8rem',
+                                background: 'rgba(0,0,0,0.3)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--foreground)',
+                                fontSize: '0.85rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={item.rol} disabled>
+                                Asignar Rol...
                               </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span style={{ color: 'var(--foreground-muted)', fontSize: '0.8rem' }}>
-                            {isSelf ? 'No modificable' : 'Sin permisos'}
-                          </span>
-                        )}
+                              {assignableRoles.map((r) => (
+                                <option key={r} value={r}>
+                                  {roleMeta[r]?.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => setUserToDelete(item)}
+                              title={`Eliminar a ${item.nombre || item.correo}`}
+                              aria-label={`Eliminar a ${item.nombre || item.correo}`}
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.12)',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                color: '#ef4444',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '0.45rem 0.65rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'background 0.2s',
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                              </svg>
+                            </button>
+                          )}
+
+                          {!canEdit && !canDelete && (
+                            <span style={{ color: 'var(--foreground-muted)', fontSize: '0.8rem' }}>
+                              {isSelf ? 'No modificable' : 'Sin permisos'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -548,9 +625,9 @@ export default function UsuariosPage(): React.ReactElement {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--foreground)' }}>
-                Registrar Nuevo Usuario
+                Invitar Nuevo Usuario
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -560,79 +637,33 @@ export default function UsuariosPage(): React.ReactElement {
               </button>
             </div>
 
-            <form onSubmit={handleCreateUserSubmit}>
-              <div style={{ marginBottom: '1.2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--foreground-muted)' }}>
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Roberto Castillo"
-                  value={createForm.nombre}
-                  onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    background: 'rgba(0,0,0,0.2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--foreground)'
-                  }}
-                />
-              </div>
+            <div style={{
+              padding: '0.85rem 1rem',
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'flex-start'
+            }}>
+              <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>✉️</span>
+              <p style={{ fontSize: '0.82rem', color: 'var(--foreground-muted)', margin: 0, lineHeight: '1.45' }}>
+                Se enviará un correo con un enlace de confirmación seguro válido por <strong>15 minutos</strong>. El invitado ingresará su nombre y contraseña en un formulario dedicado.
+              </p>
+            </div>
 
+            <form onSubmit={handleInviteSubmit}>
               <div style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--foreground-muted)' }}>
-                  Correo Electrónico
+                  Correo Electrónico del Invitado
                 </label>
                 <input
                   type="email"
                   required
                   placeholder="usuario@resmex.com"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    background: 'rgba(0,0,0,0.2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--foreground)'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--foreground-muted)' }}>
-                  Contraseña Temporal
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Mínimo 6 caracteres"
-                  value={createForm.password}
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    background: 'rgba(0,0,0,0.2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--foreground)'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--foreground-muted)' }}>
-                  Teléfono (Opcional)
-                </label>
-                <input
-                  type="tel"
-                  placeholder="7000-0000"
-                  value={createForm.telefono}
-                  onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
+                  value={inviteForm.email}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
@@ -646,11 +677,11 @@ export default function UsuariosPage(): React.ReactElement {
 
               <div style={{ marginBottom: '1.75rem' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--foreground-muted)' }}>
-                  Rol Inicial
+                  Rol a Asignar
                 </label>
                 <select
-                  value={createForm.rol}
-                  onChange={(e) => setCreateForm({ ...createForm, rol: Number(e.target.value) })}
+                  value={inviteForm.rol}
+                  onChange={(e) => setInviteForm({ ...inviteForm, rol: Number(e.target.value) })}
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
@@ -678,14 +709,134 @@ export default function UsuariosPage(): React.ReactElement {
                 </button>
                 <button
                   type="submit"
-                  disabled={createLoading}
+                  disabled={inviteLoading}
                   className="btnPrimary"
-                  style={{ background: '#8b5cf6' }}
+                  style={{ background: '#8b5cf6', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                 >
-                  {createLoading ? 'Creando...' : 'Crear Usuario'}
+                  {inviteLoading ? (
+                    <>
+                      <div style={{ width: '14px', height: '14px', border: '2px solid #fff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    'Enviar Invitación'
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Eliminar Usuario */}
+      {userToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '1rem',
+          }}
+          onClick={() => !deleteLoading && setUserToDelete(null)}
+        >
+          <div
+            style={{
+              background: 'var(--background-card)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: 'var(--radius-md)',
+              padding: '2rem',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.35rem',
+                }}
+              >
+                ⚠️
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--foreground)' }}>
+                  ¿Eliminar Usuario?
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 600 }}>
+                  Acción permanente e irreversible
+                </span>
+              </div>
+            </div>
+
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '1.75rem' }}>
+              Estás a punto de eliminar la cuenta de{' '}
+              <strong style={{ color: 'var(--foreground)' }}>
+                {userToDelete.nombre || userToDelete.correo}
+              </strong>{' '}
+              ({roleMeta[userToDelete.rol]?.name || 'Miembro'}). Se revocarán todos sus accesos al sistema de la ADESCO.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setUserToDelete(null)}
+                disabled={deleteLoading}
+                className="btnSecondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.65rem 1.35rem',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.35)',
+                }}
+              >
+                {deleteLoading ? (
+                  <>
+                    <div
+                      style={{
+                        width: '14px',
+                        height: '14px',
+                        border: '2px solid #fff',
+                        borderTop: '2px solid transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                      }}
+                    />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  'Sí, Eliminar Usuario'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
