@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Residencial México - Portal de Gestión Comunal",
   description: "Portal oficial de la Junta Directiva Elegida de la Residencial México.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
