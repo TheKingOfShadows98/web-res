@@ -15,16 +15,16 @@ export default function Hero(): React.ReactElement {
       <div className="heroContainer">
         <div className="badge">
           <span className="badgeDot"></span>
-          Sistema Oficial ADESCO 2026
+          Sistema Electronico 2026
         </div>
         
         <h1 className="heroTitle">
-          Tu Comunidad Conectada, Segura y Transparente
+          Comunidad y Trnasparencia
         </h1>
         
         <p className="heroSubtitle">
-          Bienvenido al Portal de la Asociación de Desarrollo Comunal de Residencial México.
-          Trabajando juntos por el orden, la transparencia financiera y el bienestar de todas nuestras familias.
+          Bienvenido al Portal de la Residencial México.
+           - <strong>Actualmente en desarrollo</strong> -.
         </p>
         
         <div className="heroActions">

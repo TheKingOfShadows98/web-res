@@ -2,16 +2,15 @@
 
 /**
  * @file page.tsx
- * @description Página principal (Home) de la ADESCO de la Residencial México.
+ * @description Página principal (Home) de la Residencial México.
  * @module app
  */
 
 import React from 'react';
-import Navbar from '@/components/Navbar';
+import UserLayout from '@/components/UserLayout';
 import Hero from '@/components/Hero';
 import Services from '@/components/Services';
 import QuickStats from '@/components/QuickStats';
-import Footer from '@/components/Footer';
 
 /**
  * Componente principal de la página de inicio.
@@ -20,16 +19,10 @@ import Footer from '@/components/Footer';
  */
 export default function Home(): React.ReactElement {
   return (
-    <>
-      <Navbar />
-      
-      <main>
-        <Hero />
-        <Services />
-        <QuickStats />
-      </main>
-
-      <Footer />
-    </>
+    <UserLayout>
+      <Hero />
+      <Services />
+      <QuickStats />
+    </UserLayout>
   );
 }

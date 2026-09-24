@@ -24,7 +24,7 @@ export default function Footer(): React.ReactElement {
               <span>Residencial México</span>
             </a>
             <p className="footerBrandDesc">
-              Asociación de Desarrollo Comunal (ADESCO) Residencial México. Trabajando juntos por la seguridad, el orden y el bienestar de todas nuestras familias.
+              Trabajando juntos por la seguridad, el orden y el bienestar de todas nuestras familias (Actualmente en desarrollo).
             </p>
           </div>
 
@@ -54,7 +54,7 @@ export default function Footer(): React.ReactElement {
         </div>
 
         <div className="footerBottom">
-          <p>© 2026 ADESCO Residencial México. Todos los derechos reservados.</p>
+          <p>2026. Todos los derechos reservados.</p>
           <p>Desarrollado con compromiso Pro-Bono para el bienestar de la comunidad.</p>
         </div>
       </div>

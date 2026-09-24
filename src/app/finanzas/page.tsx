@@ -9,8 +9,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import UserLayout from '@/components/UserLayout';
 import MonthlyFinanceChart from '@/components/finance/MonthlyFinanceChart';
 import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS } from '@/styles/colors';
@@ -265,10 +264,8 @@ export default function FinanzasPage(): React.ReactElement {
   };
 
   return (
-    <>
-      <Navbar />
-
-      <main style={{ minHeight: '80vh', padding: '3rem 1.25rem 5rem' }}>
+    <UserLayout>
+      <div style={{ minHeight: '80vh', padding: '3rem 1.25rem 5rem' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           
           {/* Navegación y Encabezado */}
@@ -814,9 +811,7 @@ export default function FinanzasPage(): React.ReactElement {
           </div>
 
         </div>
-      </main>
-
-      <Footer />
-    </>
+      </div>
+    </UserLayout>
   );
 }

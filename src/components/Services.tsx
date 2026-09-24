@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import UnderConstruction from './UnderConstruction';
 
 export default function Services(): React.ReactElement {
   return (
@@ -26,28 +27,9 @@ export default function Services(): React.ReactElement {
         textAlign: 'center',
         backdropFilter: 'blur(10px)'
       }}>
-        <div style={{
-          width: '56px',
-          height: '56px',
-          margin: '0 auto 1.25rem',
-          borderRadius: '50%',
-          background: 'rgba(16, 185, 129, 0.1)',
-          color: 'var(--primary)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-        <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.75rem' }}>
-          Próximamente
-        </h3>
-        <p style={{ color: 'var(--foreground-muted)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto', lineHeight: '1.6' }}>
-          Los módulos de autogestión de cuotas, reservas de espacios y pases para residentes se encuentran en desarrollo activo.
-        </p>
+        <UnderConstruction
+        />
+       
       </div>
     </section>
   );

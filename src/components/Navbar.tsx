@@ -20,6 +20,8 @@ export default function Navbar(): React.ReactElement {
 
         <div className="navLinks">
           <Link href="/" className="navLink">Inicio</Link>
+          <Link href="/reglamento" className="navLink">Reglamento y Estatutos</Link>
+          <Link href="/actividades" className="navLink">Actividades</Link>
           <Link href="/finanzas" className="navLink">Finanzas</Link>
           {/*<Link href="/#contacto" className="navLink">Contacto</Link>*/}
         </div>
