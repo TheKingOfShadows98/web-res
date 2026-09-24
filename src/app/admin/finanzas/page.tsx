@@ -91,8 +91,8 @@ export default function FinanzasDashboard(): React.ReactElement {
       setLoadingData(true);
       try {
         // A. Cargar datos históricos para Balance General
-        const { data: allIngresos, error: errAllIng } = await supabase.from('ingreso').select('cantidad');
-        const { data: allEgresos, error: errAllEgr } = await supabase.from('egreso').select('cantidad');
+        const { data: allIngresos, error: errAllIng } = await supabase.from('ingresos').select('cantidad');
+        const { data: allEgresos, error: errAllEgr } = await supabase.from('egresos').select('cantidad');
 
         if (errAllIng) throw errAllIng;
         if (errAllEgr) throw errAllEgr;
@@ -107,12 +107,12 @@ export default function FinanzasDashboard(): React.ReactElement {
         const limitStr = limitDate.toISOString();
 
         const { data: monthlyIngresos, error: errMonIng } = await supabase
-          .from('ingreso')
+          .from('ingresos')
           .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
           .gte('fecha', limitStr);
 
         const { data: monthlyEgresos, error: errMonEgr } = await supabase
-          .from('egreso')
+          .from('egresos')
           .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
           .gte('fecha', limitStr);
 

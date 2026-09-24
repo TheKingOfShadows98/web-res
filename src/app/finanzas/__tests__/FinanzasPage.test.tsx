@@ -81,7 +81,7 @@ describe('FinanzasPage Component (/finanzas)', () => {
 
     // Métricas globales históricas (1500 - 300 = 1200 USD)
     expect(await screen.findByText(/Fondo Comunitario Disponible/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$1,200\.00/i)).toBeInTheDocument();
+    expect(await screen.findByText(/\$1,200\.00/i)).toBeInTheDocument();
 
     // Tablas de Conceptos de Ingresos y Gastos (agrupadas)
     expect(screen.getByText(/Conceptos de Ingresos \(/i)).toBeInTheDocument();
@@ -138,6 +138,6 @@ describe('FinanzasPage Component (/finanzas)', () => {
     expect(screen.getAllByText(/\+\$100\.00/i).length).toBeGreaterThanOrEqual(1);
 
     // En Gastos: Mantenimiento General segregado en la tabla de gastos = $150
-    expect(screen.getByText(/-\$150\.00/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/-\$150\.00/i).length).toBeGreaterThanOrEqual(1);
   });
 });

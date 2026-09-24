@@ -3,265 +3,63 @@
 /**
  * @file page.tsx
  * @description Portal público de transparencia y rendición de cuentas financieras de la ADESCO Residencial México.
- * Incluye tablas separadas de conceptos de ingresos y gastos, flujo de caja diario con acordeón y diseño 100% responsive.
+ * Capa de presentación que consume la lógica desacoplada desde el hook useFinanzas.
  * @module app/finanzas
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import UserLayout from '@/components/UserLayout';
 import MonthlyFinanceChart from '@/components/finance/MonthlyFinanceChart';
-import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS } from '@/styles/colors';
-import { TransactionMovement, DailyActivity } from '@/app/admin/finanzas/page';
-import { getGMT6MonthRange, getGMT6DayAndDate } from '@/utils/date';
+import {
+  useFinanzas,
+  ConceptSummary,
+  TransactionMovement,
+  DailyActivity,
+  MONTH_NAMES,
+} from '@/hooks/useFinanzas';
 
-export interface ConceptSummary {
-  concepto: string;
-  totalMonto: number;
-  count: number;
-}
+// Re-exportamos interfaces para compatibilidad con otros módulos
+export type { ConceptSummary, TransactionMovement, DailyActivity };
 
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
-const START_YEAR = 2025;
-
+/**
+ * Vista de presentación de finanzas comunitarias y transparencia.
+ */
 export default function FinanzasPage(): React.ReactElement {
-  const supabase = useMemo(() => createClient(), []);
+  const {
+    selectedYear,
+    setSelectedYear,
+    selectedMonth,
+    setSelectedMonth,
+    availableYears,
+    monthNames,
 
-  // Período seleccionado
-  const now = useMemo(() => new Date(), []);
-  const [selectedYear, setSelectedYear] = useState<number>(
-    now.getFullYear() >= START_YEAR ? now.getFullYear() : START_YEAR
-  );
-  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth());
+    balanceTotalHistorico,
+    totalIngresosHistoricos,
+    totalEgresosHistoricos,
 
-  // Métricas globales históricas
-  const [balanceTotalHistorico, setBalanceTotalHistorico] = useState<number | null>(null);
-  const [totalIngresosHistoricos, setTotalIngresosHistoricos] = useState<number>(0);
-  const [totalEgresosHistoricos, setTotalEgresosHistoricos] = useState<number>(0);
+    loadingData,
+    ingresosPeriodo,
+    egresosPeriodo,
+    totalIngresosMes,
+    totalEgresosMes,
+    balanceMes,
 
-  // Datos del período seleccionado
-  const [loadingData, setLoadingData] = useState<boolean>(true);
-  const [ingresosPeriodo, setIngresosPeriodo] = useState<TransactionMovement[]>([]);
-  const [egresosPeriodo, setEgresosPeriodo] = useState<TransactionMovement[]>([]);
-  const [dailyActivities, setDailyActivities] = useState<DailyActivity[]>([]);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
-  const [conceptosTab, setConceptosTab] = useState<'todos' | 'ingresos' | 'egresos'>('todos');
-  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+    conceptosIngresos,
+    conceptosEgresos,
+    dailyActivities,
 
-  // Lista de años disponibles
-  const availableYears = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const maxYear = Math.max(currentYear + 2, 2028);
-    const years: number[] = [];
-    for (let y = START_YEAR; y <= maxYear; y++) {
-      years.push(y);
-    }
-    return years;
-  }, []);
+    conceptosTab,
+    setConceptosTab,
+    expandedDays,
+    toggleDayExpansion,
+    copiedHash,
+    copyHashToClipboard,
 
-  // Formateadores
-  const formatCurrency = useCallback((val: number) => {
-    return new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(val);
-  }, []);
-
-  const formatDateString = useCallback((dateStr: string) => {
-    return getGMT6DayAndDate(dateStr).formattedDisplay;
-  }, []);
-
-  // 1. Cargar métricas globales históricas
-  useEffect(() => {
-    let isMounted = true;
-    const fetchGlobalMetrics = async () => {
-      try {
-        const { data: ingresos, error: errIng } = await supabase.from('ingreso').select('cantidad');
-        const { data: egresos, error: errEgr } = await supabase.from('egreso').select('cantidad');
-
-        if (errIng) throw errIng;
-        if (errEgr) throw errEgr;
-
-        const sumIng = (ingresos || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-        const sumEgr = (egresos || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-
-        if (isMounted) {
-          setTotalIngresosHistoricos(sumIng);
-          setTotalEgresosHistoricos(sumEgr);
-          setBalanceTotalHistorico(sumIng - sumEgr);
-        }
-      } catch (err) {
-        console.error('Error al cargar métricas globales de finanzas:', err);
-      }
-    };
-
-    fetchGlobalMetrics();
-    return () => {
-      isMounted = false;
-    };
-  }, [supabase]);
-
-  // 2. Cargar transacciones del mes seleccionado en una sola tanda en GMT-6
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchPeriodTransactions = async () => {
-      setLoadingData(true);
-      try {
-        const { startIso, endIso } = getGMT6MonthRange(selectedYear, selectedMonth);
-
-        const { data: ingresos, error: errIng } = await supabase
-          .from('ingreso')
-          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        const { data: egresos, error: errEgr } = await supabase
-          .from('egreso')
-          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        if (errIng) throw errIng;
-        if (errEgr) throw errEgr;
-
-        const ingMovements: TransactionMovement[] = (ingresos || []).map((item) => ({
-          id: item.id,
-          tipo: 'ingreso',
-          correlativo: item.correlativo || '',
-          concepto: item.concepto || 'Ingreso sin concepto',
-          cantidad: Number(item.cantidad) || 0,
-          comprobante: item.comprobante || null,
-          hash: item.hash || '',
-          prev_hash: item.prev_hash || '',
-          fecha: item.fecha,
-        }));
-
-        const egrMovements: TransactionMovement[] = (egresos || []).map((item) => ({
-          id: item.id,
-          tipo: 'egreso',
-          correlativo: item.correlativo || '',
-          concepto: item.concepto || 'Egreso sin concepto',
-          cantidad: Number(item.cantidad) || 0,
-          comprobante: item.comprobante || null,
-          hash: item.hash || '',
-          prev_hash: item.prev_hash || '',
-          fecha: item.fecha,
-        }));
-
-        // Ordenar listas de conceptos por inserción más reciente
-        const sortDesc = (a: TransactionMovement, b: TransactionMovement) => {
-          const timeA = new Date(a.fecha).getTime();
-          const timeB = new Date(b.fecha).getTime();
-          if (timeB !== timeA) return timeB - timeA;
-          return Number(b.id || 0) - Number(a.id || 0);
-        };
-
-        ingMovements.sort(sortDesc);
-        egrMovements.sort(sortDesc);
-
-        // Agrupar movimientos diarios usando fecha en GMT-6
-        const dailyMap: { [key: string]: { ingreso: number; egreso: number; movements: TransactionMovement[] } } = {};
-
-        ingMovements.forEach((item) => {
-          if (!item.fecha) return;
-          const { dateString } = getGMT6DayAndDate(item.fecha);
-          if (!dailyMap[dateString]) dailyMap[dateString] = { ingreso: 0, egreso: 0, movements: [] };
-          dailyMap[dateString].ingreso += item.cantidad;
-          dailyMap[dateString].movements.push(item);
-        });
-
-        egrMovements.forEach((item) => {
-          if (!item.fecha) return;
-          const { dateString } = getGMT6DayAndDate(item.fecha);
-          if (!dailyMap[dateString]) dailyMap[dateString] = { ingreso: 0, egreso: 0, movements: [] };
-          dailyMap[dateString].egreso += item.cantidad;
-          dailyMap[dateString].movements.push(item);
-        });
-
-        const activitiesList: DailyActivity[] = Object.keys(dailyMap).map((date) => {
-          const ing = dailyMap[date].ingreso;
-          const egr = dailyMap[date].egreso;
-          const sorted = [...dailyMap[date].movements].sort(sortDesc);
-
-          return {
-            date,
-            ingreso: ing,
-            egreso: egr,
-            diferencia: ing - egr,
-            movements: sorted,
-          };
-        }).sort((a, b) => b.date.localeCompare(a.date));
-
-        if (isMounted) {
-          setIngresosPeriodo(ingMovements);
-          setEgresosPeriodo(egrMovements);
-          setDailyActivities(activitiesList);
-        }
-      } catch (err) {
-        console.error('Error al cargar movimientos del período:', err);
-      } finally {
-        if (isMounted) {
-          setLoadingData(false);
-        }
-      }
-    };
-
-    fetchPeriodTransactions();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedYear, selectedMonth, supabase]);
-
-  const totalIngresosMes = useMemo(() => {
-    return ingresosPeriodo.reduce((sum, item) => sum + item.cantidad, 0);
-  }, [ingresosPeriodo]);
-
-  const totalEgresosMes = useMemo(() => {
-    return egresosPeriodo.reduce((sum, item) => sum + item.cantidad, 0);
-  }, [egresosPeriodo]);
-
-  // Agrupación de conceptos por similitud y acumulación de montos
-  const conceptosIngresos = useMemo<ConceptSummary[]>(() => {
-    const map = new Map<string, { concepto: string; totalMonto: number; count: number }>();
-    for (const item of ingresosPeriodo) {
-      const rawConcept = item.concepto?.trim() || 'Ingreso sin concepto';
-      const key = rawConcept.toLowerCase().replace(/\s+/g, ' ');
-      if (!map.has(key)) {
-        map.set(key, { concepto: rawConcept, totalMonto: 0, count: 0 });
-      }
-      const entry = map.get(key)!;
-      entry.totalMonto += Number(item.cantidad) || 0;
-      entry.count += 1;
-    }
-    return Array.from(map.values()).sort((a, b) => b.totalMonto - a.totalMonto);
-  }, [ingresosPeriodo]);
-
-  const conceptosEgresos = useMemo<ConceptSummary[]>(() => {
-    const map = new Map<string, { concepto: string; totalMonto: number; count: number }>();
-    for (const item of egresosPeriodo) {
-      const rawConcept = item.concepto?.trim() || 'Gasto sin concepto';
-      const key = rawConcept.toLowerCase().replace(/\s+/g, ' ');
-      if (!map.has(key)) {
-        map.set(key, { concepto: rawConcept, totalMonto: 0, count: 0 });
-      }
-      const entry = map.get(key)!;
-      entry.totalMonto += Number(item.cantidad) || 0;
-      entry.count += 1;
-    }
-    return Array.from(map.values()).sort((a, b) => b.totalMonto - a.totalMonto);
-  }, [egresosPeriodo]);
-
-  const balanceMes = totalIngresosMes - totalEgresosMes;
-
-  const copyHashToClipboard = (hash: string) => {
-    navigator.clipboard.writeText(hash);
-    setCopiedHash(hash);
-    setTimeout(() => setCopiedHash(null), 2000);
-  };
+    formatCurrency,
+    formatDateString,
+  } = useFinanzas();
 
   return (
     <UserLayout>
@@ -319,7 +117,7 @@ export default function FinanzasPage(): React.ReactElement {
                       cursor: 'pointer'
                     }}
                   >
-                    {MONTH_NAMES.map((name, idx) => (
+                    {monthNames.map((name, idx) => (
                       <option key={name} value={idx}>
                         {name}
                       </option>
@@ -390,7 +188,7 @@ export default function FinanzasPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Gráfico Mensual Interactivo sincronizado con el período de la página (Petición Única) */}
+          {/* Gráfico Mensual Interactivo */}
           <MonthlyFinanceChart
             year={selectedYear}
             month={selectedMonth}
@@ -626,14 +424,7 @@ export default function FinanzasPage(): React.ReactElement {
                               cursor: 'pointer',
                               transition: 'background-color 0.2s',
                             }}
-                            onClick={() => {
-                              setExpandedDays((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(row.date)) next.delete(row.date);
-                                else next.add(row.date);
-                                return next;
-                              });
-                            }}
+                            onClick={() => toggleDayExpansion(row.date)}
                             onMouseEnter={(e) => {
                               if (!isExpanded) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
                             }}
@@ -649,141 +440,138 @@ export default function FinanzasPage(): React.ReactElement {
                                   viewBox="0 0 24 24"
                                   fill="none"
                                   stroke="currentColor"
-                                  strokeWidth="2.5"
+                                  strokeWidth="2"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   style={{
                                     transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.2s ease',
-                                    color: THEME_COLORS.ingreso,
+                                    transition: 'transform 0.2s',
+                                    color: 'var(--primary)',
                                   }}
                                 >
-                                  <polyline points="9 18 15 12 9 6"></polyline>
+                                  <polyline points="9 18 15 12 9 6" />
                                 </svg>
                                 <span>{formatDateString(row.date)}</span>
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  padding: '0.15rem 0.5rem',
-                                  borderRadius: '12px',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                                  color: 'var(--foreground-muted)',
-                                }}>
-                                  {row.movements.length} {row.movements.length === 1 ? 'movimiento' : 'movimientos'}
+                                <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', fontWeight: 400 }}>
+                                  ({row.movements.length} {row.movements.length === 1 ? 'movimiento' : 'movimientos'})
                                 </span>
                               </div>
                             </td>
-                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.ingreso > 0 ? THEME_COLORS.ingreso : 'var(--foreground-muted)' }}>
-                              {row.ingreso > 0 ? `+ ${formatCurrency(row.ingreso)}` : '$0.00'}
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.ingreso > 0 ? THEME_COLORS.ingreso : 'var(--foreground-muted)', fontWeight: row.ingreso > 0 ? 600 : 400 }}>
+                              {row.ingreso > 0 ? `+${formatCurrency(row.ingreso)}` : '$0.00'}
                             </td>
-                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.egreso > 0 ? THEME_COLORS.egreso : 'var(--foreground-muted)' }}>
-                              {row.egreso > 0 ? `- ${formatCurrency(row.egreso)}` : '$0.00'}
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: row.egreso > 0 ? THEME_COLORS.egreso : 'var(--foreground-muted)', fontWeight: row.egreso > 0 ? 600 : 400 }}>
+                              {row.egreso > 0 ? `-${formatCurrency(row.egreso)}` : '$0.00'}
                             </td>
-                            <td style={{
-                              padding: '0.85rem 1rem',
-                              textAlign: 'right',
-                              fontWeight: 600,
-                              color: row.diferencia > 0 ? THEME_COLORS.balancePositive : row.diferencia < 0 ? THEME_COLORS.balanceNegative : 'var(--foreground)',
-                            }}>
-                              {row.diferencia > 0 ? '+' : ''}{formatCurrency(row.diferencia)}
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 700, color: row.diferencia >= 0 ? THEME_COLORS.balancePositive : THEME_COLORS.balanceNegative }}>
+                              {row.diferencia >= 0 ? '+' : ''}{formatCurrency(row.diferencia)}
                             </td>
                           </tr>
 
-                          {/* Acordeón de transacciones del día */}
+                          {/* Acordeón expandido con los movimientos detallados de ese día */}
                           {isExpanded && (
-                            <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
-                              <td colSpan={4} style={{ padding: '0.75rem 1rem 1.25rem 2.25rem' }}>
+                            <tr>
+                              <td colSpan={4} style={{ padding: '0 1rem 1.25rem 1rem', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border)' }}>
                                 <div style={{
-                                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                                  border: '1px solid var(--border)',
+                                  background: 'rgba(0, 0, 0, 0.3)',
                                   borderRadius: 'var(--radius-sm)',
                                   padding: '1rem',
+                                  border: '1px solid var(--border)',
                                 }}>
-                                  <h5 style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Desglose de transacciones ({formatDateString(row.date)})
-                                  </h5>
+                                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--foreground-muted)', marginBottom: '0.75rem' }}>
+                                    Desglose de Transacciones ({formatDateString(row.date)})
+                                  </h4>
+
                                   <div className="tableResponsiveContainer">
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--foreground-muted)' }}>
-                                          <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Correlativo</th>
-                                          <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Concepto</th>
-                                          <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Tipo</th>
-                                          <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: 600 }}>Monto</th>
-                                          <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 600 }}>Firma Hash (SHA-256)</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600 }}>Tipo</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600 }}>Nº / Recibo</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600 }}>Concepto</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'right', fontWeight: 600 }}>Monto</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'center', fontWeight: 600 }}>Comprobante</th>
+                                          <th style={{ padding: '0.5rem 0.4rem', textAlign: 'center', fontWeight: 600 }}>Firma Hash</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {row.movements.map((mov, idx) => (
-                                          <tr key={mov.id || idx} style={{ borderBottom: idx < row.movements.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                                            <td style={{ padding: '0.5rem 0.6rem', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--foreground)' }}>
-                                              {mov.correlativo ? (
-                                                <span style={{
-                                                  padding: '0.15rem 0.4rem',
-                                                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                                                  borderRadius: '4px',
-                                                  fontWeight: 600,
-                                                }}>
-                                                  #{mov.correlativo}
-                                                </span>
-                                              ) : (
-                                                <span style={{ color: 'var(--foreground-muted)' }}>—</span>
-                                              )}
-                                            </td>
-                                            <td style={{ padding: '0.5rem 0.6rem', color: 'var(--foreground)' }}>
-                                              {mov.concepto}
-                                            </td>
-                                            <td style={{ padding: '0.5rem 0.6rem' }}>
+                                        {row.movements.map((mov) => (
+                                          <tr key={`${mov.tipo}-${mov.id}`} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                                            <td style={{ padding: '0.55rem 0.4rem' }}>
                                               <span style={{
-                                                fontSize: '0.75rem',
                                                 padding: '0.2rem 0.5rem',
                                                 borderRadius: '4px',
-                                                fontWeight: 600,
+                                                fontSize: '0.7rem',
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
                                                 backgroundColor: mov.tipo === 'ingreso' ? THEME_COLORS.ingresoGlow : THEME_COLORS.egresoGlow,
                                                 color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso,
-                                                border: `1px solid ${mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso}`,
-                                                textTransform: 'uppercase',
+                                                border: `1px solid ${mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso}40`,
                                               }}>
                                                 {mov.tipo}
                                               </span>
                                             </td>
-                                            <td style={{
-                                              padding: '0.5rem 0.6rem',
-                                              textAlign: 'right',
-                                              fontWeight: 600,
-                                              color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso,
-                                            }}>
+                                            <td style={{ padding: '0.55rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--foreground-muted)' }}>
+                                              {mov.correlativo ? `#${mov.correlativo}` : '—'}
+                                            </td>
+                                            <td style={{ padding: '0.55rem 0.4rem', color: 'var(--foreground)' }}>
+                                              {mov.concepto}
+                                            </td>
+                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'right', fontWeight: 700, color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso }}>
                                               {mov.tipo === 'ingreso' ? '+' : '-'}{formatCurrency(mov.cantidad)}
                                             </td>
-                                            <td style={{ padding: '0.5rem 0.6rem' }}>
+                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'center' }}>
+                                              {mov.comprobante ? (
+                                                <a
+                                                  href={mov.comprobante}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="btnSecondary"
+                                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                                >
+                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                                    <polyline points="15 3 21 3 21 9" />
+                                                    <line x1="10" y1="14" x2="21" y2="3" />
+                                                  </svg>
+                                                  Ver
+                                                </a>
+                                              ) : (
+                                                <span style={{ color: 'var(--foreground-muted)', fontSize: '0.75rem' }}>—</span>
+                                              )}
+                                            </td>
+                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'center' }}>
                                               {mov.hash ? (
-                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                                                   <code
-                                                    title={`Hash Completo: ${mov.hash}\nPrev Hash: ${mov.prev_hash || '(Ninguno)'}`}
+                                                    title={mov.hash}
                                                     style={{
-                                                      fontFamily: 'var(--font-mono)',
-                                                      fontSize: '0.75rem',
-                                                      backgroundColor: 'rgba(0,0,0,0.4)',
-                                                      padding: '0.2rem 0.4rem',
+                                                      fontSize: '0.7rem',
+                                                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                                      padding: '0.15rem 0.4rem',
                                                       borderRadius: '4px',
-                                                      color: 'var(--foreground-muted)',
-                                                      border: '1px solid var(--border)',
-                                                      maxWidth: '140px',
+                                                      maxWidth: '90px',
                                                       overflow: 'hidden',
                                                       textOverflow: 'ellipsis',
                                                       whiteSpace: 'nowrap',
                                                       display: 'inline-block',
+                                                      verticalAlign: 'middle',
                                                     }}
                                                   >
-                                                    {mov.hash.slice(0, 8)}...{mov.hash.slice(-6)}
+                                                    {mov.hash.substring(0, 8)}...
                                                   </code>
                                                   <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      copyHashToClipboard(mov.hash);
+                                                    onClick={() => copyHashToClipboard(mov.hash)}
+                                                    style={{
+                                                      background: 'transparent',
+                                                      border: '1px solid var(--border)',
+                                                      borderRadius: '4px',
+                                                      padding: '0.15rem 0.35rem',
+                                                      fontSize: '0.65rem',
+                                                      cursor: 'pointer',
+                                                      color: copiedHash === mov.hash ? 'var(--primary)' : 'var(--foreground-muted)',
                                                     }}
-                                                    className="btnSecondary"
-                                                    style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
-                                                    title="Copiar Hash SHA-256"
+                                                    title="Copiar firma Hash"
                                                   >
                                                     {copiedHash === mov.hash ? '¡Copiado!' : 'Copiar'}
                                                   </button>

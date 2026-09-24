@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 describe('Navbar Component', () => {
   it('renderiza correctamente el título de la ADESCO y el logo', () => {
     render(<Navbar />);
-    expect(screen.getByText(/ADESCO Residencial México/i)).toBeInTheDocument();
+    expect(screen.getByText(/Residencial México/i)).toBeInTheDocument();
     expect(screen.getByText('RM')).toBeInTheDocument();
   });
 

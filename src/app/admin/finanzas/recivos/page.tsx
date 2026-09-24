@@ -39,7 +39,7 @@ export default function RecivosPage(): React.ReactElement {
   });
 
   // Estados del formulario financiero
-  const [activeTab, setActiveTab] = useState<'ingreso' | 'egreso'>('ingreso');
+  const [activeTab, setActiveTab] = useState<'ingresos' | 'egresos'>('ingresos');
   const [ingresoForm, setIngresoForm] = useState<Omit<IIngreso, 'id'>>(() => ({
     correlativo: '',
     concepto: '',
@@ -86,12 +86,12 @@ export default function RecivosPage(): React.ReactElement {
   // Manejar cambios en formularios
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    formType: 'ingreso' | 'egreso'
+    formType: 'ingresos' | 'egresos'
   ) => {
     const { name, value } = e.target;
     const parsedValue = name === 'cantidad' ? parseFloat(value) || 0 : value;
 
-    if (formType === 'ingreso') {
+    if (formType === 'ingresos') {
       setIngresoForm((prev) => ({ ...prev, [name]: parsedValue }));
     } else {
       setEgresoForm((prev) => ({ ...prev, [name]: parsedValue }));
@@ -160,7 +160,7 @@ export default function RecivosPage(): React.ReactElement {
   };
 
   // Enviar formulario financiero a Supabase (requiere estar autenticado por RLS)
-  const handleSubmit = async (e: React.FormEvent, formType: 'ingreso' | 'egreso') => {
+  const handleSubmit = async (e: React.SubmitEvent, formType: 'ingresos' | 'egresos') => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -171,7 +171,7 @@ export default function RecivosPage(): React.ReactElement {
       return;
     }
 
-    const data = formType === 'ingreso' ? ingresoForm : egresoForm;
+    const data = formType === 'ingresos' ? ingresoForm : egresoForm;
 
     // Validación básica
     if (!data.concepto.trim()) {
@@ -186,7 +186,7 @@ export default function RecivosPage(): React.ReactElement {
     }
 
     try {
-      const dbTable = formType === 'ingreso' ? 'ingreso' : 'egreso';
+      const dbTable = formType === 'ingresos' ? 'ingresos' : 'egresos';
 
       // 1. Obtener el hash del registro anterior para encadenamiento criptográfico
       const { data: lastRows } = await supabase
@@ -221,12 +221,12 @@ export default function RecivosPage(): React.ReactElement {
 
       setMessage({
         type: 'success',
-        text: `¡${formType === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado con éxito con firma criptográfica!`,
+        text: `¡${formType === 'ingresos' ? 'Ingresos' : 'Egresos'} registrado con éxito con firma criptográfica!`,
       });
 
       // Limpiar formulario financiero
       const now = getInitialDateTime();
-      if (formType === 'ingreso') {
+      if (formType === 'ingresos') {
         setIngresoForm({ correlativo: '', concepto: '', cantidad: 0, comprobante: '', fecha: now });
       } else {
         setEgresoForm({ correlativo: '', concepto: '', cantidad: 0, comprobante: '', fecha: now });
@@ -430,20 +430,20 @@ export default function RecivosPage(): React.ReactElement {
       {/* Tabs / Selectores de Formulario */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
         <button
-          className={activeTab === 'ingreso' ? 'btnPrimary' : 'btnSecondary'}
+          className={activeTab === 'ingresos' ? 'btnPrimary' : 'btnSecondary'}
           style={{ flex: 1, justifyContent: 'center' }}
           onClick={() => {
-            setActiveTab('ingreso');
+            setActiveTab('ingresos');
             setMessage(null);
           }}
         >
           Registrar Ingreso
         </button>
         <button
-          className={activeTab === 'egreso' ? 'btnPrimary' : 'btnSecondary'}
+          className={activeTab === 'egresos' ? 'btnPrimary' : 'btnSecondary'}
           style={{ flex: 1, justifyContent: 'center' }}
           onClick={() => {
-            setActiveTab('egreso');
+            setActiveTab('egresos');
             setMessage(null);
           }}
         >
@@ -472,7 +472,7 @@ export default function RecivosPage(): React.ReactElement {
       {/* Formulario Dinámico */}
       <div className="card" style={{ cursor: 'default' }}>
         <h3 className="cardTitle" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-          Formulario de {activeTab === 'ingreso' ? 'Ingreso' : 'Egreso'}
+          Formulario de {activeTab === 'ingresos' ? 'Ingresos' : 'Egresos'}
         </h3>
 
         <form onSubmit={(e) => handleSubmit(e, activeTab)}>
@@ -484,7 +484,7 @@ export default function RecivosPage(): React.ReactElement {
               type="text"
               className="formInput"
               placeholder="Ej. REC-001, 1024, etc."
-              value={activeTab === 'ingreso' ? (ingresoForm.correlativo || '') : (egresoForm.correlativo || '')}
+              value={activeTab === 'ingresos' ? (ingresoForm.correlativo || '') : (egresoForm.correlativo || '')}
               onChange={(e) => handleInputChange(e, activeTab)}
             />
           </div>
@@ -497,7 +497,7 @@ export default function RecivosPage(): React.ReactElement {
               type="text"
               className="formInput"
               placeholder="Ej. Pago de mantenimiento, Compra de insumos..."
-              value={activeTab === 'ingreso' ? ingresoForm.concepto : egresoForm.concepto}
+              value={activeTab === 'ingresos' ? ingresoForm.concepto : egresoForm.concepto}
               onChange={(e) => handleInputChange(e, activeTab)}
               required
             />
@@ -512,7 +512,7 @@ export default function RecivosPage(): React.ReactElement {
               step="0.01"
               className="formInput"
               placeholder="0.00"
-              value={(activeTab === 'ingreso' ? ingresoForm.cantidad : egresoForm.cantidad) || ''}
+              value={(activeTab === 'ingresos' ? ingresoForm.cantidad : egresoForm.cantidad) || ''}
               onChange={(e) => handleInputChange(e, activeTab)}
               required
             />
@@ -526,7 +526,7 @@ export default function RecivosPage(): React.ReactElement {
               type="url"
               className="formInput"
               placeholder="https://ejemplo.com/comprobante.pdf"
-              value={activeTab === 'ingreso' ? ingresoForm.comprobante : egresoForm.comprobante}
+              value={activeTab === 'ingresos' ? ingresoForm.comprobante : egresoForm.comprobante}
               onChange={(e) => handleInputChange(e, activeTab)}
             />
           </div>
@@ -538,7 +538,7 @@ export default function RecivosPage(): React.ReactElement {
               name="fecha"
               type="datetime-local"
               className="formInput"
-              value={activeTab === 'ingreso' ? (ingresoForm.fecha as string) : (egresoForm.fecha as string)}
+              value={activeTab === 'ingresos' ? (ingresoForm.fecha as string) : (egresoForm.fecha as string)}
               onChange={(e) => handleInputChange(e, activeTab)}
             />
           </div>
@@ -549,7 +549,7 @@ export default function RecivosPage(): React.ReactElement {
             disabled={loading}
             style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}
           >
-            {loading ? 'Guardando en Supabase...' : `Registrar ${activeTab === 'ingreso' ? 'Ingreso' : 'Egreso'}`}
+            {loading ? 'Guardando en Supabase...' : `Registrar ${activeTab === 'ingresos' ? 'Ingresos' : 'Egresos'}`}
           </button>
         </form>
       </div>

@@ -161,13 +161,13 @@ export default function MonthlyFinanceChart({
         const { startIso, endIso, lastDay } = getGMT6MonthRange(selectedYear, selectedMonth);
 
         const { data: ingresos, error: errIng } = await supabase
-          .from('ingreso')
+          .from('ingresos')
           .select('cantidad, fecha')
           .gte('fecha', startIso)
           .lte('fecha', endIso);
 
         const { data: egresos, error: errEgr } = await supabase
-          .from('egreso')
+          .from('egresos')
           .select('cantidad, fecha')
           .gte('fecha', startIso)
           .lte('fecha', endIso);
