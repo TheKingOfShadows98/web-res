@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { UserRole } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 export default function CompletarRegistroPage(): React.ReactElement {
   const router = useRouter();
@@ -106,11 +107,7 @@ export default function CompletarRegistroPage(): React.ReactElement {
           }
 
           // Consultar nombre preexistente si lo hubiese
-          const { data: profile } = await supabase
-            .from('usuario')
-            .select('nombre, telefono, rol')
-            .eq('id', targetUser.id)
-            .single();
+          const profile = await usuariosRepository.getUserProfile(targetUser.id, supabase);
 
           if (profile && isMounted) {
             if (profile.nombre && profile.nombre !== 'Usuario Invitado' && profile.nombre !== 'Usuario Nuevo') {
@@ -203,16 +200,17 @@ export default function CompletarRegistroPage(): React.ReactElement {
 
       // 2. Sincronizar el perfil en la tabla public.usuario
       if (userId) {
-        const { error: profileErr } = await supabase
-          .from('usuario')
-          .update({
-            nombre: nombre.trim(),
-            telefono: telefono.trim(),
-            correo: email,
-          })
-          .eq('id', userId);
-
-        if (profileErr) {
+        try {
+          await usuariosRepository.updateUserProfile(
+            userId,
+            {
+              nombre: nombre.trim(),
+              telefono: telefono.trim(),
+              correo: email,
+            },
+            supabase
+          );
+        } catch (profileErr) {
           console.warn('Advertencia al sincronizar perfil público:', profileErr);
         }
       }

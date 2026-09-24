@@ -35,7 +35,7 @@ export interface IIngreso {
   correlativo?: string;
   concepto: string;
   cantidad: number;
-  comprobante?: string;
+  comprobante?: string | null;
   fecha?: Date | string;
   hash?: string;
   prev_hash?: string;
@@ -46,7 +46,7 @@ export interface IEgreso {
   correlativo?: string;
   concepto: string;
   cantidad: number;
-  comprobante?: string;
+  comprobante?: string | null;
   fecha?: Date | string;
   hash?: string;
   prev_hash?: string;

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { UserRole } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 const roleLabels: Record<number, { name: string; color: string }> = {
   [UserRole.OWNER]: { name: 'Owner', color: '#8b5cf6' },
@@ -45,14 +46,8 @@ export default function AdminHubPage(): React.ReactElement {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
         if (user) {
-          const { data: profile } = await supabase
-            .from('usuario')
-            .select('rol')
-            .eq('id', user.id)
-            .single();
-          if (profile) {
-            setUserRole(profile.rol ?? UserRole.MIEMBRO);
-          }
+          const role = await usuariosRepository.getUserRole(user.id, supabase);
+          setUserRole(role);
         }
       } catch (err) {
         console.error('Error al verificar sesión:', err);
@@ -65,14 +60,8 @@ export default function AdminHubPage(): React.ReactElement {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user || null);
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('usuario')
-          .select('rol')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.rol ?? UserRole.MIEMBRO);
-        }
+        const role = await usuariosRepository.getUserRole(session.user.id, supabase);
+        setUserRole(role);
       }
     });
 

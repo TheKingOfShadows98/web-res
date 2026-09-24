@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { UserRole } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,20 +21,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Verificar rol administrativo del solicitante
-    const { data: callerProfile, error: profileError } = await supabase
-      .from('usuario')
-      .select('rol')
-      .eq('id', callerUser.id)
-      .single();
+    const callerRole = await usuariosRepository.getUserRole(callerUser.id, supabase);
 
-    if (profileError || !callerProfile) {
-      return NextResponse.json(
-        { error: 'No se pudo verificar el perfil del usuario.' },
-        { status: 403 }
-      );
-    }
-
-    const callerRole = Number(callerProfile.rol);
     if (callerRole !== UserRole.ADMINISTRADOR && callerRole !== UserRole.OWNER) {
       return NextResponse.json(
         { error: 'Permisos insuficientes. Se requiere rol de Administrador u Owner.' },
@@ -92,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Asegurar sincronización en la tabla public.usuario
     if (inviteData?.user) {
-      await adminClient.from('usuario').upsert(
+      await usuariosRepository.upsertUserProfile(
         {
           id: inviteData.user.id,
           correo: email.trim().toLowerCase(),
@@ -100,7 +89,7 @@ export async function POST(request: NextRequest) {
           nombre: 'Usuario Invitado',
           telefono: '',
         },
-        { onConflict: 'id' }
+        adminClient
       );
     }
 

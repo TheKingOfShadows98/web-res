@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS } from '@/styles/colors';
+import { finanzasRepository } from '@/repositories/finanzas.repository';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -30,44 +31,14 @@ export default function QuickStats(): React.ReactElement {
   useEffect(() => {
     const fetchFinancialSummary = async () => {
       try {
-        // 1. Balance General Histórico
-        const { data: ingresosHist, error: errIngHist } = await supabase.from('ingreso').select('cantidad');
-        const { data: egresosHist, error: errEgrHist } = await supabase.from('egreso').select('cantidad');
+        const [metrics, monthSummary] = await Promise.all([
+          finanzasRepository.getGlobalMetrics(supabase),
+          finanzasRepository.getCurrentMonthSummary(now, supabase),
+        ]);
 
-        if (errIngHist) throw errIngHist;
-        if (errEgrHist) throw errEgrHist;
-
-        const totalHistIng = (ingresosHist || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-        const totalHistEgr = (egresosHist || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-        setBalanceGeneral(totalHistIng - totalHistEgr);
-
-        // 2. Movimientos del Mes en Curso
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const startIso = new Date(Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)).toISOString();
-        const endIso = new Date(Date.UTC(currentYear, currentMonth, lastDayOfMonth, 23, 59, 59, 999)).toISOString();
-
-        const { data: ingresosMes, error: errIngMes } = await supabase
-          .from('ingreso')
-          .select('cantidad, fecha')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        const { data: egresosMes, error: errEgrMes } = await supabase
-          .from('egreso')
-          .select('cantidad, fecha')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        if (errIngMes) throw errIngMes;
-        if (errEgrMes) throw errEgrMes;
-
-        const totalMesIng = (ingresosMes || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-        const totalMesEgr = (egresosMes || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-
-        setIngresosMesActual(totalMesIng);
-        setGastosMesActual(totalMesEgr);
+        setBalanceGeneral(metrics.balanceTotal);
+        setIngresosMesActual(monthSummary.ingresosMes);
+        setGastosMesActual(monthSummary.gastosMes);
       } catch (err) {
         console.error('Error al cargar datos de transparencia financiera:', err);
         setBalanceGeneral(0);

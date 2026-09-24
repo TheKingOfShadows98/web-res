@@ -11,10 +11,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { getGMT6MonthRange, getGMT6DayAndDate } from '@/utils/date';
+import { finanzasRepository } from '@/repositories/finanzas.repository';
 
 export interface TransactionMovement {
   id: number | string;
-  tipo: 'ingreso' | 'egreso';
+  tipo: 'ingresos' | 'egresos';
   correlativo: string;
   concepto: string;
   cantidad: number;
@@ -145,19 +146,11 @@ export function useFinanzas(options?: UseFinanzasOptions): UseFinanzasReturn {
 
     const fetchGlobalMetrics = async () => {
       try {
-        const { data: ingresos, error: errIng } = await supabase.from('ingreso').select('cantidad');
-        const { data: egresos, error: errEgr } = await supabase.from('egreso').select('cantidad');
-
-        if (errIng) throw errIng;
-        if (errEgr) throw errEgr;
-
-        const sumIng = (ingresos || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-        const sumEgr = (egresos || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
-
+        const metrics = await finanzasRepository.getGlobalMetrics(supabase);
         if (isMounted) {
-          setTotalIngresosHistoricos(sumIng);
-          setTotalEgresosHistoricos(sumEgr);
-          setBalanceTotalHistorico(sumIng - sumEgr);
+          setTotalIngresosHistoricos(metrics.totalIngresos);
+          setTotalEgresosHistoricos(metrics.totalEgresos);
+          setBalanceTotalHistorico(metrics.balanceTotal);
         }
       } catch (err) {
         console.error('Error al cargar métricas globales de finanzas:', err);
@@ -180,44 +173,10 @@ export function useFinanzas(options?: UseFinanzasOptions): UseFinanzasReturn {
       try {
         const { startIso, endIso } = getGMT6MonthRange(selectedYear, selectedMonth);
 
-        const { data: ingresos, error: errIng } = await supabase
-          .from('ingreso')
-          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        const { data: egresos, error: errEgr } = await supabase
-          .from('egreso')
-          .select('id, correlativo, concepto, cantidad, comprobante, fecha, hash, prev_hash')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        if (errIng) throw errIng;
-        if (errEgr) throw errEgr;
-
-        const ingMovements: TransactionMovement[] = (ingresos || []).map((item) => ({
-          id: item.id,
-          tipo: 'ingreso',
-          correlativo: item.correlativo || '',
-          concepto: item.concepto || 'Ingreso sin concepto',
-          cantidad: Number(item.cantidad) || 0,
-          comprobante: item.comprobante || null,
-          hash: item.hash || '',
-          prev_hash: item.prev_hash || '',
-          fecha: item.fecha,
-        }));
-
-        const egrMovements: TransactionMovement[] = (egresos || []).map((item) => ({
-          id: item.id,
-          tipo: 'egreso',
-          correlativo: item.correlativo || '',
-          concepto: item.concepto || 'Egreso sin concepto',
-          cantidad: Number(item.cantidad) || 0,
-          comprobante: item.comprobante || null,
-          hash: item.hash || '',
-          prev_hash: item.prev_hash || '',
-          fecha: item.fecha,
-        }));
+        const [ingMovements, egrMovements] = await Promise.all([
+          finanzasRepository.getIngresosByRange(startIso, endIso, supabase),
+          finanzasRepository.getEgresosByRange(startIso, endIso, supabase),
+        ]);
 
         // Ordenar listas de conceptos por inserción más reciente
         const sortDesc = (a: TransactionMovement, b: TransactionMovement) => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { UserRole } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 export async function DELETE(
   _request: NextRequest,
@@ -40,13 +41,9 @@ export async function DELETE(
     }
 
     // 2. Obtener rol del solicitante
-    const { data: callerProfile, error: callerProfileErr } = await supabase
-      .from('usuario')
-      .select('rol')
-      .eq('id', callerUser.id)
-      .single();
+    const callerProfile = await usuariosRepository.getUserProfile(callerUser.id, supabase);
 
-    if (callerProfileErr || !callerProfile) {
+    if (!callerProfile) {
       return NextResponse.json(
         { error: 'No se pudo verificar el perfil del solicitante.' },
         { status: 403 }
@@ -57,18 +54,7 @@ export async function DELETE(
 
     // 3. Obtener rol del usuario objetivo a eliminar
     const adminClient = createAdminClient();
-    const { data: targetProfile, error: targetProfileErr } = await adminClient
-      .from('usuario')
-      .select('rol, nombre, correo')
-      .eq('id', targetUserId)
-      .maybeSingle();
-
-    if (targetProfileErr) {
-      return NextResponse.json(
-        { error: 'Error al consultar datos del usuario a eliminar.' },
-        { status: 500 }
-      );
-    }
+    const targetProfile = await usuariosRepository.getUserProfile(targetUserId, adminClient);
 
     const targetRole = targetProfile ? Number(targetProfile.rol) : UserRole.MIEMBRO;
 
@@ -99,7 +85,7 @@ export async function DELETE(
 
     // 5. Proceder a eliminar de public.usuario y auth.users
     // Borrar de la tabla pública
-    await adminClient.from('usuario').delete().eq('id', targetUserId);
+    await usuariosRepository.deleteUserProfile(targetUserId, adminClient);
 
     // Borrar de Supabase Auth
     const { error: deleteAuthErr } = await adminClient.auth.admin.deleteUser(targetUserId);

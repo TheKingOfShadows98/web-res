@@ -12,6 +12,7 @@ import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { IIngreso, IEgreso } from '@/app/entities/Recivos';
 import { generateReceiptHash } from '@/utils/crypto';
+import { finanzasRepository } from '@/repositories/finanzas.repository';
 
 const getInitialDateTime = (): string => {
   const now = new Date();
@@ -186,16 +187,10 @@ export default function RecivosPage(): React.ReactElement {
     }
 
     try {
-      const dbTable = formType === 'ingresos' ? 'ingresos' : 'egresos';
+      const tipo = formType === 'ingresos' ? 'ingresos' : 'egresos';
 
       // 1. Obtener el hash del registro anterior para encadenamiento criptográfico
-      const { data: lastRows } = await supabase
-        .from(dbTable)
-        .select('hash')
-        .order('id', { ascending: false })
-        .limit(1);
-
-      const prevHash = (lastRows && lastRows.length > 0 && lastRows[0].hash) ? String(lastRows[0].hash) : '';
+      const prevHash = await finanzasRepository.getLastMovementHash(tipo, supabase);
 
       // 2. Construir payload determinista
       const payloadToHash = {
@@ -215,9 +210,11 @@ export default function RecivosPage(): React.ReactElement {
         hash,
       };
 
-      const { error } = await supabase.from(dbTable).insert([payload]);
-
-      if (error) throw error;
+      if (tipo === 'ingresos') {
+        await finanzasRepository.createIngreso(payload, supabase);
+      } else {
+        await finanzasRepository.createEgreso(payload, supabase);
+      }
 
       setMessage({
         type: 'success',
@@ -526,7 +523,7 @@ export default function RecivosPage(): React.ReactElement {
               type="url"
               className="formInput"
               placeholder="https://ejemplo.com/comprobante.pdf"
-              value={activeTab === 'ingresos' ? ingresoForm.comprobante : egresoForm.comprobante}
+              value={(activeTab === 'ingresos' ? ingresoForm.comprobante : egresoForm.comprobante) || ''}
               onChange={(e) => handleInputChange(e, activeTab)}
             />
           </div>

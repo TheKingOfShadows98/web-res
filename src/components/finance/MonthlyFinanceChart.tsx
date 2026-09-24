@@ -23,6 +23,7 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import { THEME_COLORS, CHART_COLORS } from '@/styles/colors';
 import { getGMT6MonthRange, getGMT6DayAndDate } from '@/utils/date';
+import { finanzasRepository } from '@/repositories/finanzas.repository';
 
 interface DayMovement {
   diaNumero: number;
@@ -160,20 +161,10 @@ export default function MonthlyFinanceChart({
       try {
         const { startIso, endIso, lastDay } = getGMT6MonthRange(selectedYear, selectedMonth);
 
-        const { data: ingresos, error: errIng } = await supabase
-          .from('ingresos')
-          .select('cantidad, fecha')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        const { data: egresos, error: errEgr } = await supabase
-          .from('egresos')
-          .select('cantidad, fecha')
-          .gte('fecha', startIso)
-          .lte('fecha', endIso);
-
-        if (errIng) throw errIng;
-        if (errEgr) throw errEgr;
+        const [ingresos, egresos] = await Promise.all([
+          finanzasRepository.getIngresosByRange(startIso, endIso, supabase),
+          finanzasRepository.getEgresosByRange(startIso, endIso, supabase),
+        ]);
 
         const dayMap: { [day: number]: { ingresos: number; egresos: number } } = {};
         for (let d = 1; d <= lastDay; d++) {

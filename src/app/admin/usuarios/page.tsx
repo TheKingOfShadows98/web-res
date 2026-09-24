@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { UserRole, IUsuario } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 const roleMeta: Record<number, { name: string; color: string; desc: string }> = {
   [UserRole.OWNER]: {
@@ -71,12 +72,7 @@ export default function UsuariosPage(): React.ReactElement {
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const { data, error } = await supabase
-        .from('usuario')
-        .select('id, nombre, correo, rol, telefono')
-        .order('rol', { ascending: false });
-
-      if (error) throw error;
+      const data = await usuariosRepository.getAllUsers(supabase);
       setUsers(data || []);
     } catch (err) {
       console.error('Error al cargar lista de usuarios:', err);
@@ -98,23 +94,14 @@ export default function UsuariosPage(): React.ReactElement {
         setCurrentUser(user);
 
         if (user) {
-          const { data: profile } = await supabase
-            .from('usuario')
-            .select('rol')
-            .eq('id', user.id)
-            .single();
+          const role = await usuariosRepository.getUserRole(user.id, supabase);
 
           if (!isMounted) return;
-          const role = profile?.rol ?? UserRole.MIEMBRO;
           setCurrentRole(role);
 
           if (role > UserRole.MIEMBRO) {
-            const { data: userList, error: errUsers } = await supabase
-              .from('usuario')
-              .select('id, nombre, correo, rol, telefono')
-              .order('rol', { ascending: false });
+            const userList = await usuariosRepository.getAllUsers(supabase);
 
-            if (errUsers) throw errUsers;
             if (isMounted) {
               setUsers(userList || []);
             }
@@ -136,13 +123,9 @@ export default function UsuariosPage(): React.ReactElement {
       if (!isMounted) return;
       setCurrentUser(session?.user || null);
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('usuario')
-          .select('rol')
-          .eq('id', session.user.id)
-          .single();
-        if (profile && isMounted) {
-          setCurrentRole(profile.rol ?? UserRole.MIEMBRO);
+        const role = await usuariosRepository.getUserRole(session.user.id, supabase);
+        if (isMounted) {
+          setCurrentRole(role);
         }
       }
     });
@@ -185,12 +168,7 @@ export default function UsuariosPage(): React.ReactElement {
     setMessage(null);
 
     try {
-      const { error } = await supabase
-        .from('usuario')
-        .update({ rol: newRole })
-        .eq('id', userId);
-
-      if (error) throw error;
+      await usuariosRepository.updateUserRole(userId, newRole, supabase);
 
       setMessage({ type: 'success', text: 'Rol de usuario actualizado correctamente.' });
       setUsers((prev) =>

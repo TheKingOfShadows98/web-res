@@ -504,9 +504,9 @@ export default function FinanzasPage(): React.ReactElement {
                                                 fontSize: '0.7rem',
                                                 fontWeight: 700,
                                                 textTransform: 'uppercase',
-                                                backgroundColor: mov.tipo === 'ingreso' ? THEME_COLORS.ingresoGlow : THEME_COLORS.egresoGlow,
-                                                color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso,
-                                                border: `1px solid ${mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso}40`,
+                                                backgroundColor: mov.tipo === 'ingresos' ? THEME_COLORS.ingresoGlow : THEME_COLORS.egresoGlow,
+                                                color: mov.tipo === 'ingresos' ? THEME_COLORS.ingreso : THEME_COLORS.egreso,
+                                                border: `1px solid ${mov.tipo === 'ingresos' ? THEME_COLORS.ingreso : THEME_COLORS.egreso}40`,
                                               }}>
                                                 {mov.tipo}
                                               </span>
@@ -517,8 +517,8 @@ export default function FinanzasPage(): React.ReactElement {
                                             <td style={{ padding: '0.55rem 0.4rem', color: 'var(--foreground)' }}>
                                               {mov.concepto}
                                             </td>
-                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'right', fontWeight: 700, color: mov.tipo === 'ingreso' ? THEME_COLORS.ingreso : THEME_COLORS.egreso }}>
-                                              {mov.tipo === 'ingreso' ? '+' : '-'}{formatCurrency(mov.cantidad)}
+                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'right', fontWeight: 700, color: mov.tipo === 'ingresos' ? THEME_COLORS.ingreso : THEME_COLORS.egreso }}>
+                                              {mov.tipo === 'ingresos' ? '+' : '-'}{formatCurrency(mov.cantidad)}
                                             </td>
                                             <td style={{ padding: '0.55rem 0.4rem', textAlign: 'center' }}>
                                               {mov.comprobante ? (

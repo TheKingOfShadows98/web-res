@@ -13,6 +13,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { UserRole } from '@/app/entities/Recivos';
+import { usuariosRepository } from '@/repositories/usuarios.repository';
 import styles from './AdminLayout.module.css';
 
 export interface AdminLayoutProps {
@@ -114,14 +115,9 @@ export default function AdminLayout({
         if (isMounted) setUser(user);
 
         if (user) {
-          const { data: profile } = await supabase
-            .from('usuario')
-            .select('rol')
-            .eq('id', user.id)
-            .single();
-
-          if (profile && isMounted) {
-            setUserRole(profile.rol ?? UserRole.MIEMBRO);
+          const role = await usuariosRepository.getUserRole(user.id, supabase);
+          if (isMounted) {
+            setUserRole(role);
           }
         }
       } catch (err) {
@@ -136,14 +132,9 @@ export default function AdminLayout({
       setUser(session?.user || null);
 
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('usuario')
-          .select('rol')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile && isMounted) {
-          setUserRole(profile.rol ?? UserRole.MIEMBRO);
+        const role = await usuariosRepository.getUserRole(session.user.id, supabase);
+        if (isMounted) {
+          setUserRole(role);
         }
       }
     });
