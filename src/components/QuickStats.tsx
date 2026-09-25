@@ -60,9 +60,9 @@ export default function QuickStats(): React.ReactElement {
       <div className="statsContainer" style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div className="sectionHeader" style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <span className="sectionLabel" style={{ color: THEME_COLORS.ingreso }}>Rendición de Cuentas</span>
-          <h2 className="sectionTitle" style={{ fontSize: '2.25rem', marginTop: '0.25rem' }}>Transparencia Financiera</h2>
+          <h2 className="sectionTitle" style={{ fontSize: '2.25rem', marginTop: '0.25rem' }}>Transparencia Financiera  (DEMOSTRACION)</h2>
           <p style={{ color: 'var(--foreground-muted)', fontSize: '1rem', maxWidth: '600px', margin: '0.5rem auto 0' }}>
-            Acceso público e inmutable a los fondos comunitarios y estado financiero de la Residencial México.
+            Acceso público e inmutable a los fondos comunitarios de la Residencial México.
           </p>
         </div>
 

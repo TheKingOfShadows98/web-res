@@ -82,7 +82,7 @@ export default function FinanzasPage(): React.ReactElement {
                   Portal de Acceso Abierto
                 </span>
                 <h1 className="heroTitle" style={{ fontSize: '2.5rem', marginBottom: '0.5rem', marginTop: '0.25rem' }}>
-                  Finanzas y Transparencia
+                  Finanzas y Transparencia (DEMOSTRACION)
                 </h1>
                 <p className="heroSubtitle" style={{ fontSize: '1rem', margin: 0, maxWidth: '750px' }}>
                   Consulta en tiempo real el estado financiero, balances auditables y desglose de movimientos de la ADESCO Residencial México.
@@ -520,26 +520,7 @@ export default function FinanzasPage(): React.ReactElement {
                                             <td style={{ padding: '0.55rem 0.4rem', textAlign: 'right', fontWeight: 700, color: mov.tipo === 'ingresos' ? THEME_COLORS.ingreso : THEME_COLORS.egreso }}>
                                               {mov.tipo === 'ingresos' ? '+' : '-'}{formatCurrency(mov.cantidad)}
                                             </td>
-                                            <td style={{ padding: '0.55rem 0.4rem', textAlign: 'center' }}>
-                                              {mov.comprobante ? (
-                                                <a
-                                                  href={mov.comprobante}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="btnSecondary"
-                                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-                                                >
-                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                                    <polyline points="15 3 21 3 21 9" />
-                                                    <line x1="10" y1="14" x2="21" y2="3" />
-                                                  </svg>
-                                                  Ver
-                                                </a>
-                                              ) : (
-                                                <span style={{ color: 'var(--foreground-muted)', fontSize: '0.75rem' }}>—</span>
-                                              )}
-                                            </td>
+                                            
                                             <td style={{ padding: '0.55rem 0.4rem', textAlign: 'center' }}>
                                               {mov.hash ? (
                                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
