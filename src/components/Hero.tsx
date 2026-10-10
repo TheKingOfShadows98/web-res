@@ -19,7 +19,7 @@ export default function Hero(): React.ReactElement {
         </div>
         
         <h1 className="heroTitle">
-          Comunidad y Trnasparencia
+          Comunidad y Transparencia
         </h1>
         
         <p className="heroSubtitle">
