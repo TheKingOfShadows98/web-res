@@ -1,0 +1,264 @@
+/* ==============================================================================
+ * Estilos aislados para el Tema Navidad / Temporada Invernal (Winter Edition)
+ * Paleta de colores: Azul escarcha, hielo ártico, plata y destellos glaciares
+ * ============================================================================== */
+
+.wrapper {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--background, #050b14);
+  overflow-x: hidden;
+}
+
+/* Resplandor glacial en la parte superior */
+.festiveGlow {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 750px;
+  height: 340px;
+  background: radial-gradient(
+    ellipse at top, 
+    rgba(56, 189, 248, 0.18) 0%, 
+    rgba(14, 116, 144, 0.1) 40%, 
+    rgba(30, 58, 138, 0.05) 65%, 
+    transparent 85%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Navbar Invernal */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(14px);
+  background-color: rgba(7, 16, 32, 0.9);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 25px rgba(2, 6, 23, 0.6);
+}
+
+/* Nieve acumulada en el borde superior del navbar */
+.snowCapBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #bae6fd 0%, #ffffff 25%, #e0f2fe 50%, #ffffff 75%, #bae6fd 100%);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  pointer-events: none;
+  z-index: 102;
+}
+
+/* Carámbanos de hielo que cuelgan y sobresalen del borde inferior */
+.iciclesBar {
+  position: absolute;
+  bottom: -15px;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20' preserveAspectRatio='none'><path d='M0,0 L120,0 L120,4 C112,5 110,13 108,18 C107,20 105,20 104,17 C101,10 98,5 92,4 C86,4 84,10 82,14 C81,16 79,16 78,13 C75,8 72,5 65,4 C58,4 55,14 53,20 C52,22 50,22 49,19 C45,10 42,5 34,4 C28,4 25,9 24,13 C23,15 21,15 20,12 C17,7 14,4 8,4 C4,4 1,5 0,5 Z' fill='%237dd3fc' opacity='0.7'/><path d='M0,0 L120,0 L120,2 C110,3 107,11 106,15 C102,6 96,3 90,3 C83,3 81,8 80,11 C77,6 71,3 65,3 C58,3 54,12 52,17 C48,7 44,3 36,3 C29,3 26,8 24,10 C20,5 15,3 8,3 C4,3 1,3 0,3 Z' fill='%23ffffff' opacity='0.95'/></svg>");
+  background-repeat: repeat-x;
+  background-size: 110px 16px;
+  filter: drop-shadow(0 4px 8px rgba(56, 189, 248, 0.45));
+  pointer-events: none;
+  z-index: 101;
+}
+
+.navContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+/* Contenedor relativo para alojar el logo y el gorrito de Santa Claus */
+.logoIconWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Gorrito de Santa Claus descansando sobre el icono */
+.santaHat {
+  position: absolute;
+  top: -15px;
+  left: -8px;
+  width: 32px;
+  height: 28px;
+  transform: rotate(-14deg);
+  z-index: 10;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.logo:hover .santaHat {
+  transform: rotate(-22deg) scale(1.12);
+}
+
+.logoIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 55%, #e0f2fe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.45);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.navLink {
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.navLink:hover {
+  color: #38bdf8;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.btnAdmin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnAdmin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+}
+
+/* Hero Invernal */
+.hero {
+  position: relative;
+  padding: 6.5rem 1.5rem 4.5rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1.1rem;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 9999px;
+  color: #7dd3fc;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.heroTitle {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #f8fafc;
+  margin-bottom: 1.25rem;
+}
+
+.heroAccent {
+  background: linear-gradient(135deg, #38bdf8 15%, #bae6fd 60%, #e0f2fe 95%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 35px rgba(56, 189, 248, 0.3);
+}
+
+.heroSubtitle {
+  font-size: 1.15rem;
+  color: #94a3b8;
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.6;
+}
+
+.heroActions {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.btnFestivePrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.75rem;
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  color: #031326;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.4);
+  transition: all 0.2s;
+}
+
+.btnFestivePrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 26px rgba(56, 189, 248, 0.6);
+  background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 100%);
+}
+
+.btnFestiveSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #f1f5f9;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btnFestiveSecondary:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: #38bdf8;
+  color: #ffffff;
+}

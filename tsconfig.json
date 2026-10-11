@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/active-theme": ["./src/themes/active-theme.ts"]
     }
   },
   "include": [

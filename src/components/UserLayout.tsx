@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import Navbar from '@/components/Navbar';
+import { ThemeNavbar, ThemeLayoutWrapper } from '@/active-theme';
 import Footer from '@/components/Footer';
 import styles from './UserLayout.module.css';
 
@@ -27,6 +27,7 @@ export interface UserLayoutProps {
 
 /**
  * Layout general para las páginas del lado del usuario / residentes.
+ * Aplica automáticamente la barra de navegación y envoltorio visual del tema activo.
  */
 export default function UserLayout({
   children,
@@ -35,19 +36,23 @@ export default function UserLayout({
   className = '',
   maxWidth,
 }: UserLayoutProps): React.ReactElement {
+  const LayoutWrapper = ThemeLayoutWrapper || React.Fragment;
+
   return (
-    <div className={`${styles.layoutContainer} ${className}`}>
-      {!hideNavbar && <Navbar />}
+    <LayoutWrapper>
+      <div className={`${styles.layoutContainer} ${className}`}>
+        {!hideNavbar && <ThemeNavbar />}
 
-      <main
-        className={styles.mainContent}
-        style={maxWidth ? { maxWidth, margin: '0 auto', width: '100%' } : undefined}
-      >
-        {children}
-      </main>
+        <main
+          className={styles.mainContent}
+          style={maxWidth ? { maxWidth, margin: '0 auto', width: '100%' } : undefined}
+        >
+          {children}
+        </main>
 
-      {!hideFooter && <Footer />}
-    </div>
+        {!hideFooter && <Footer />}
+      </div>
+    </LayoutWrapper>
   );
 }
 
