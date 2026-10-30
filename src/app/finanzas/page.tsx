@@ -167,7 +167,7 @@ export default function FinanzasPage(): React.ReactElement {
             <div className="card" style={{ cursor: 'default', borderLeft: `4px solid ${(balanceTotalHistorico ?? 0) >= 0 ? THEME_COLORS.balancePositive : THEME_COLORS.balanceNegative}` }}>
               <span className="sectionLabel" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Fondo Comunitario Disponible</span>
               <h3 className="statValue" style={{ fontSize: '2.25rem', color: (balanceTotalHistorico ?? 0) >= 0 ? THEME_COLORS.balancePositive : THEME_COLORS.balanceNegative }}>
-                {balanceTotalHistorico === null ? 'Calculando...' : formatCurrency(balanceTotalHistorico)}
+                {balanceTotalHistorico === null ? 'Calculando...' : formatCurrency(balanceTotalHistorico ||  0)}
               </h3>
               <p className="statDesc" style={{ marginTop: '0.5rem' }}>Balance total acumulado en caja</p>
             </div>
