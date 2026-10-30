@@ -23,7 +23,7 @@ export default function Home(): React.ReactElement {
     <UserLayout>
       <ThemeHero />
       <Services />
-      <QuickStats />
+      {/* <QuickStats /> */}
     </UserLayout>
   );
 }

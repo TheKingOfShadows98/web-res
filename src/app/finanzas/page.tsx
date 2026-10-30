@@ -19,6 +19,7 @@ import {
   DailyActivity,
   MONTH_NAMES,
 } from '@/hooks/useFinanzas';
+import UnderConstruction from '@/components/UnderConstruction';
 
 // Re-exportamos interfaces para compatibilidad con otros módulos
 export type { ConceptSummary, TransactionMovement, DailyActivity };
@@ -61,7 +62,9 @@ export default function FinanzasPage(): React.ReactElement {
     formatDateString,
   } = useFinanzas();
 
+  return (<UnderConstruction/>);
   return (
+
     <UserLayout>
       <div style={{ minHeight: '80vh', padding: '3rem 1.25rem 5rem' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>

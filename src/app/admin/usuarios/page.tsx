@@ -17,7 +17,17 @@ const roleMeta: Record<number, { name: string; color: string; desc: string }> = 
   [UserRole.OWNER]: {
     name: 'Owner',
     color: '#8b5cf6',
-    desc: 'Control total. Puede promover y eliminar Administradores y Auditores.',
+    desc: 'Control total. Puede promover y gestionar todos los roles de la plataforma.',
+  },
+  [UserRole.PRESIDENCIA]: {
+    name: 'Presidencia',
+    color: '#ec4899',
+    desc: 'Junta directiva. Supervisión comunitaria, recolección de cuotas y autorizaciones.',
+  },
+  [UserRole.TESORERIA]: {
+    name: 'Tesorería',
+    color: '#eab308',
+    desc: 'Gestión y cobro de cuotas, libro contable y registro de ingresos y egresos.',
   },
   [UserRole.ADMINISTRADOR]: {
     name: 'Administrador',
@@ -32,7 +42,7 @@ const roleMeta: Record<number, { name: string; color: string; desc: string }> = 
   [UserRole.COLABORADOR]: {
     name: 'Colaborador',
     color: '#f59e0b',
-    desc: 'Acceso básico al panel administrativo.',
+    desc: 'Acceso básico al panel administrativo y cobranza de cuotas.',
   },
   [UserRole.MIEMBRO]: {
     name: 'Miembro',
@@ -154,10 +164,17 @@ export default function UsuariosPage(): React.ReactElement {
   // Opciones de roles asignables según el rol del usuario logueado
   const getAssignableRoles = (): number[] => {
     if (currentRole === UserRole.OWNER) {
-      return [UserRole.MIEMBRO, UserRole.COLABORADOR, UserRole.ADMINISTRADOR, UserRole.AUDITOR];
+      return [
+        UserRole.MIEMBRO,
+        UserRole.COLABORADOR,
+        UserRole.ADMINISTRADOR,
+        UserRole.TESORERIA,
+        UserRole.PRESIDENCIA,
+        UserRole.AUDITOR,
+      ];
     }
     if (currentRole === UserRole.ADMINISTRADOR) {
-      return [UserRole.MIEMBRO, UserRole.COLABORADOR];
+      return [UserRole.MIEMBRO, UserRole.COLABORADOR, UserRole.TESORERIA];
     }
     return [];
   };

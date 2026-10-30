@@ -58,6 +58,8 @@ export enum UserRole {
   ADMINISTRADOR = 2,
   AUDITOR = 3,
   OWNER = 4,
+  PRESIDENCIA = 5,
+  TESORERIA = 6,
 }
 
 export interface IUsuario {

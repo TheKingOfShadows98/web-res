@@ -116,3 +116,26 @@ a {
   }
 }
 
+/* --- ESTILOS GLOBALES DE ELEMENTOS SELECT Y DROPDOWNS --- */
+select,
+.formInput,
+select.formInput {
+  color-scheme: dark;
+}
+
+select,
+select option,
+.formInput option,
+optgroup {
+  background-color: #0b1320;
+  color: #f8fafc;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+

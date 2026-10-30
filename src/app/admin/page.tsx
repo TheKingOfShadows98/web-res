@@ -15,6 +15,8 @@ import { usuariosRepository } from '@/repositories/usuarios.repository';
 
 const roleLabels: Record<number, { name: string; color: string }> = {
   [UserRole.OWNER]: { name: 'Owner', color: '#8b5cf6' },
+  [UserRole.PRESIDENCIA]: { name: 'Presidencia', color: '#ec4899' },
+  [UserRole.TESORERIA]: { name: 'Tesorería', color: '#eab308' },
   [UserRole.ADMINISTRADOR]: { name: 'Administrador', color: '#10b981' },
   [UserRole.AUDITOR]: { name: 'Auditor', color: '#3b82f6' },
   [UserRole.COLABORADOR]: { name: 'Colaborador', color: '#f59e0b' },
@@ -445,6 +447,71 @@ export default function AdminHubPage(): React.ReactElement {
                 <line x1="9" y1="15" x2="15" y2="15"></line>
               </svg>
               Registrar Movimiento / Recibo
+            </Link>
+          </div>
+        </div>
+
+        {/* Sección: Módulo de Cuotas de Mantenimiento y Seguridad */}
+        <div style={{
+          background: 'var(--background-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '4px',
+            height: '100%',
+            background: '#3b82f6'
+          }} />
+          
+          <div>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'rgba(59, 130, 246, 0.15)',
+              color: '#3b82f6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1.25rem'
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--foreground)' }}>
+              {userRole === UserRole.OWNER ? 'Cuotas y Estructura Territorial' : 'Recolección de Cuotas'}
+            </h3>
+            <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+              {userRole === UserRole.OWNER
+                ? 'Administración y alta de Zonas, Edificios, Calles y Casas, asignación de cuotas mensuales y control de recolección quincenal.'
+                : 'Seguimiento quincenal de cuotas vecinales, tablero con código de colores (al día, otra quincena, por cobrar) y registro de recibos.'}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <Link
+              href="/admin/cuotas"
+              className="btnPrimary"
+              style={{ width: '100%', justifyContent: 'center', padding: '0.75rem 1rem', background: '#3b82f6' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+              </svg>
+              {userRole === UserRole.OWNER ? 'Panel de Cuotas y Territorio' : 'Apartado de Pago de Cuotas'}
             </Link>
           </div>
         </div>

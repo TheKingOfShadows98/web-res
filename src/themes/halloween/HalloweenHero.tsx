@@ -11,6 +11,11 @@ import Link from 'next/link';
 import styles from './Halloween.module.css';
 
 export default function HalloweenHero(): React.ReactElement {
+
+  const showfinanzas = false;
+  const finanzas = (<Link href="/finanzas" className={styles.btnSpookySecondary}>
+          Transparencia de Fondos
+        </Link>)
   return (
     <header className={styles.hero}>
       <div className={styles.badge}>
@@ -32,9 +37,8 @@ export default function HalloweenHero(): React.ReactElement {
         <Link href="/actividades" className={styles.btnSpookyPrimary}>
           <span>Ver Eventos y Concursos 🎃</span>
         </Link>
-        <Link href="/finanzas" className={styles.btnSpookySecondary}>
-          Transparencia de Fondos
-        </Link>
+        {showfinanzas ?? finanzas }
+        
       </div>
     </header>
   );

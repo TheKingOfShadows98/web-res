@@ -465,6 +465,14 @@
   font-family: var(--font-sans);
   font-size: 0.875rem;
   transition: var(--transition-fast);
+  color-scheme: dark;
+}
+
+select.formInput option,
+.formInput option {
+  background-color: #0b1320;
+  color: #f8fafc;
+  padding: 0.5rem;
 }
 
 .formInput:focus {

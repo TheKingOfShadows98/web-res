@@ -11,6 +11,11 @@ import Link from 'next/link';
 import styles from './Christmas.module.css';
 
 export default function ChristmasHero(): React.ReactElement {
+    const showfinanzas = false;
+
+    const finanzas = (<Link href="/finanzas" className={styles.btnFestiveSecondary}>
+          Cierre Financiero Anual
+        </Link>);
   return (
     <header className={styles.hero}>
       <div className={styles.badge}>
@@ -32,9 +37,8 @@ export default function ChristmasHero(): React.ReactElement {
         <Link href="/actividades" className={styles.btnFestivePrimary}>
           <span>Ver Agenda Navideña 🎄</span>
         </Link>
-        <Link href="/finanzas" className={styles.btnFestiveSecondary}>
-          Cierre Financiero Anual
-        </Link>
+        
+         {showfinanzas ?? finanzas }
       </div>
     </header>
   );
